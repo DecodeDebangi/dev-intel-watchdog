@@ -33,6 +33,8 @@ class GitHubStackProfiler:
                         data["excluded_dependencies"] = []
                     if "feed_preferences" not in data:
                         data["feed_preferences"] = {}
+                    if "user_city" not in data:
+                        data["user_city"] = "Online / Global"
                     return data
             except Exception as e:
                 logger.error(f"Error reading stack profile at {self.stack_path}: {e}")
@@ -54,6 +56,7 @@ class GitHubStackProfiler:
                 "fastapi": 1
             },
             "feed_preferences": {},
+            "user_city": "Online / Global",
             "last_synced": None
         }
 
@@ -80,6 +83,11 @@ class GitHubStackProfiler:
             json.dump(profile, f, indent=2)
 
         return profile
+
+    def update_user_city(self, city: str) -> dict:
+        profile = self.load_existing_profile()
+        profile["user_city"] = city.strip() or "Online / Global"
+        return self._recalculate_active_dependencies(profile)
 
     def update_feed_preferences(self, prefs: Dict[str, bool]) -> dict:
         profile = self.load_existing_profile()
@@ -181,6 +189,7 @@ class GitHubStackProfiler:
         custom_deps = set(existing.get("custom_dependencies", []))
         excluded_deps = set(existing.get("excluded_dependencies", []))
         feed_prefs = existing.get("feed_preferences", {})
+        user_city = existing.get("user_city", "Online / Global")
 
         if not self.token:
             logger.warning("GITHUB_ACCESS_TOKEN not configured. Utilizing existing stack context.")
@@ -273,6 +282,7 @@ class GitHubStackProfiler:
                 "dependency_repo_map": formatted_repo_map,
                 "dependency_counts": dependency_counts,
                 "feed_preferences": feed_prefs,
+                "user_city": user_city,
                 "last_synced": datetime.now(timezone.utc).isoformat()
             }
 
@@ -317,3 +327,7 @@ def update_feed_preferences(prefs: Dict[str, bool]) -> dict:
 def reset_feed_preferences() -> dict:
     profiler = GitHubStackProfiler()
     return profiler.reset_feed_preferences()
+
+def update_user_city(city: str) -> dict:
+    profiler = GitHubStackProfiler()
+    return profiler.update_user_city(city)

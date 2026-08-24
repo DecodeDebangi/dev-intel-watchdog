@@ -3,7 +3,7 @@ import json
 import sqlite3
 import logging
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -20,20 +20,22 @@ from src.github_sync import (
     bulk_restore_dependencies,
     clean_utility_noise,
     update_feed_preferences,
-    reset_feed_preferences
+    reset_feed_preferences,
+    update_user_city
 )
 from src.feed_ingestion import ingest_all_feeds, FeedIngestor
 from src.consensus_engine import consensus_deduplicate
 from src.analyzer import analyze_technical_content, TechAnalyzer, classify_report_category
 from src.rag_store import store_in_rag, search_rag, LocalRAGStore
 from src.notifier import notify_report, Notifier
+from src.events_ingestion import ingest_tech_events, TechEvent
 
 logger = logging.getLogger("dev-intel-watchdog.api")
 
 app = FastAPI(
     title="Developer Intelligence & Security Watchdog API",
-    description="REST backend for dynamic stack profiling, custom stack management, consensus feed aggregation, Gemini security analysis, and local RAG search.",
-    version="0.1.0"
+    description="REST backend for dynamic stack profiling, custom stack management, consensus feed aggregation, Gemini security analysis, tech events/hackathons, and local RAG search.",
+    version="0.2.0"
 )
 
 app.add_middleware(
@@ -54,6 +56,9 @@ class BulkDependencyPayload(BaseModel):
 
 class FeedPreferencesPayload(BaseModel):
     preferences: Dict[str, bool]
+
+class CityPayload(BaseModel):
+    city: str
 
 def run_watchdog_pipeline():
     """Background worker function for non-blocking feed ingestion and analysis."""
@@ -76,6 +81,18 @@ def run_watchdog_pipeline():
         logger.info(f"Background watchdog pipeline completed successfully. Processed {len(analyzed_reports)} items.")
     except Exception as e:
         logger.error(f"Error in background watchdog execution: {e}")
+
+def run_events_pipeline():
+    """Background worker for fetching and storing hackathons, webinars, and tech events."""
+    try:
+        logger.info("Starting background tech events & hackathons ingestion pipeline...")
+        events = ingest_tech_events()
+        store = LocalRAGStore()
+        for e in events:
+            store.store_event(e)
+        logger.info(f"Background events pipeline completed successfully. Stored {len(events)} tech events.")
+    except Exception as e:
+        logger.error(f"Error in background events execution: {e}")
 
 @app.get("/")
 def read_root():
@@ -200,7 +217,6 @@ def get_feed_reports(limit: int = 500):
         seen_titles.add(title_key)
 
         sources_list = json.loads(r[9]) if r[9] else []
-        # Filter out reports whose sources are disabled by the user or auto-muted
         if sources_list and not any(src in enabled_sources for src in sources_list):
             continue
 
@@ -241,6 +257,28 @@ def get_feed_reports(limit: int = 500):
             break
 
     return {"reports": reports, "count": len(reports)}
+
+@app.get("/api/events")
+def get_events_endpoint(city: Optional[str] = None, event_type: Optional[str] = None):
+    store = LocalRAGStore()
+    events = store.get_events(city=city, event_type=event_type)
+    if not events:
+        run_events_pipeline()
+        events = store.get_events(city=city, event_type=event_type)
+    return {"events": events, "count": len(events)}
+
+@app.post("/api/events/city")
+def update_user_city_endpoint(payload: CityPayload):
+    try:
+        profile = update_user_city(payload.city)
+        return {"status": "success", "profile": profile}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/events/run")
+def trigger_events_run(background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_events_pipeline)
+    return {"status": "started", "message": "Events ingestion pipeline launched in background."}
 
 @app.post("/api/watchdog/run")
 def trigger_watchdog_run(background_tasks: BackgroundTasks):
@@ -292,10 +330,14 @@ def get_dashboard_stats():
     except Exception as e:
         logger.error(f"Error computing dashboard stats: {e}")
 
+    events_list = store.get_events()
+
     return {
         "active_dependencies_count": len(stack.get("active_dependencies", [])),
         "core_languages_count": len(stack.get("core_languages", [])),
         "total_reports_ingested": total_reports,
         "urgent_cve_alerts": urgent_cves,
+        "total_events_count": len(events_list),
+        "user_city": stack.get("user_city", "Online / Global"),
         "last_synced": stack.get("last_synced")
     }
