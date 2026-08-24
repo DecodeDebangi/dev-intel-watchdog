@@ -5,6 +5,7 @@ import logging
 import re
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
+import requests
 import feedparser
 from pydantic import BaseModel, Field
 
@@ -29,6 +30,11 @@ class TechEvent(BaseModel):
     stack_tags: List[str] = []
     summary: str
 
+KNOWN_EVENT_TOPICS = [
+    "python", "javascript", "react", "devops", "security",
+    "ai", "android", "ios", "general", "graphql", "cloud"
+]
+
 KNOWN_EVENT_FEEDS = [
     {
         "name": "Devpost Hackathons",
@@ -42,59 +48,6 @@ KNOWN_EVENT_FEEDS = [
     }
 ]
 
-SAMPLE_EVENTS = [
-    {
-        "title": "Global AI & LLM Innovation Hackathon 2026",
-        "event_type": "hackathon",
-        "is_virtual": True,
-        "city_location": "Online",
-        "event_date": "2026-09-15",
-        "url": "https://devpost.com/hackathons",
-        "stack_tags": ["python", "fastapi", "ai", "pydantic", "openai"],
-        "summary": "Build cutting-edge autonomous AI agents and vector RAG applications. $50,000 in total prizes!"
-    },
-    {
-        "title": "React & Next.js 15 Full-Stack Summit",
-        "event_type": "webinar",
-        "is_virtual": True,
-        "city_location": "Online",
-        "event_date": "2026-09-20",
-        "url": "https://reactsummit.com",
-        "stack_tags": ["react", "next", "typescript", "javascript"],
-        "summary": "Deep dive into Server Actions, Partial Prerendering, and performance optimizations for modern Web apps."
-    },
-    {
-        "title": "Bengaluru Dev Community Tech Meetup",
-        "event_type": "local_meetup",
-        "is_virtual": False,
-        "city_location": "Bengaluru",
-        "event_date": "2026-09-10",
-        "url": "https://meetup.com",
-        "stack_tags": ["python", "react", "node", "express"],
-        "summary": "Local networking, lightning tech talks, and live coding demos with developer peers in Bengaluru."
-    },
-    {
-        "title": "San Francisco AI Developer Conference",
-        "event_type": "local_meetup",
-        "is_virtual": False,
-        "city_location": "San Francisco",
-        "event_date": "2026-09-28",
-        "url": "https://meetup.com",
-        "stack_tags": ["python", "fastapi", "ai"],
-        "summary": "In-person developer summit featuring keynotes from leading AI researchers and open-source maintainers."
-    },
-    {
-        "title": "PyCon Global Developer Conference 2026",
-        "event_type": "global_conference",
-        "is_virtual": True,
-        "city_location": "Global",
-        "event_date": "2026-10-05",
-        "url": "https://pycon.org",
-        "stack_tags": ["python", "django", "fastapi"],
-        "summary": "The premier annual conference for the Python programming language community worldwide."
-    }
-]
-
 class EventsIngestor:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or settings.gemini_api_key
@@ -105,84 +58,146 @@ class EventsIngestor:
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini Client for events ingestion: {e}")
 
-    def _determine_event_type(self, title: str, summary: str, default_type: str) -> str:
+    def _clean_html(self, text: str) -> str:
+        if not text:
+            return ""
+        clean = re.sub(r'<[^>]+>', ' ', text)
+        return ' '.join(clean.split())
+
+    def _normalize_city_name(self, raw_city: Optional[str]) -> str:
+        if not raw_city:
+            return "Online"
+        c = raw_city.strip().lower()
+        if "bangalore" in c or "bengaluru" in c:
+            return "Bengaluru"
+        if "san francisco" in c or "sf" in c or "bay area" in c or "san jose" in c:
+            return "San Francisco"
+        if "delhi" in c or "noida" in c or "gurugram" in c or "gurgaon" in c:
+            return "Delhi"
+        if "hyderabad" in c:
+            return "Hyderabad"
+        if "mumbai" in c:
+            return "Mumbai"
+        if "chennai" in c:
+            return "Chennai"
+        if "pune" in c:
+            return "Pune"
+        if "london" in c:
+            return "London"
+        if "new york" in c or "nyc" in c:
+            return "New York"
+        if "singapore" in c:
+            return "Singapore"
+        if "tokyo" in c:
+            return "Tokyo"
+        if "berlin" in c:
+            return "Berlin"
+        if "paris" in c:
+            return "Paris"
+        if "chicago" in c:
+            return "Chicago"
+        if "seattle" in c:
+            return "Seattle"
+        if "austin" in c:
+            return "Austin"
+        
+        # Clean state/country suffixes e.g. "San Francisco, CA" -> "San Francisco"
+        clean = raw_city.split(",")[0].strip()
+        return clean
+
+    def _determine_event_type(self, title: str, summary: str, is_online: bool) -> str:
         text = f"{title} {summary}".lower()
         if "hackathon" in text or "buildathon" in text or "challenge" in text:
             return "hackathon"
         if "webinar" in text or "workshop" in text or "livestream" in text or "masterclass" in text:
             return "webinar"
-        if "meetup" in text or "gathering" in text or "user group" in text:
+        if "meetup" in text or "user group" in text or "community" in text:
             return "local_meetup"
-        if "conference" in text or "summit" in text or "pycon" in text or "jsconf" in text:
-            return "global_conference"
-        return default_type
+        if not is_online or "conference" in text or "summit" in text or "pycon" in text or "jsconf" in text or "droidcon" in text:
+            return "local_meetup" if not is_online else "global_conference"
+        return "global_conference"
 
     def _extract_stack_tags(self, title: str, summary: str) -> List[str]:
         combined = f"{title} {summary}".lower()
         known_stack = [
             "react", "react-dom", "next", "express", "fastapi", "python",
             "typescript", "javascript", "node", "django", "flask", "ai",
-            "openai", "pydantic", "tailwindcss", "vite", "docker", "postgres"
+            "openai", "pydantic", "tailwindcss", "vite", "docker", "postgres",
+            "android", "ios", "flutter", "cloud", "security", "graphql"
         ]
         found = [kw for kw in known_stack if re.search(r'\b' + re.escape(kw) + r'\b', combined)]
         return sorted(list(set(found)))
 
-    def fetch_events(self) -> List[TechEvent]:
+    def fetch_real_tech_conferences(self) -> List[TechEvent]:
+        """Fetch 100% REAL-WORLD global tech events, conferences, and meetups."""
         events: List[TechEvent] = []
+        seen_urls = set()
 
-        # 1. Load sample curated events first
-        for s in SAMPLE_EVENTS:
-            item_id = hashlib.sha256(f"{s['title']}:{s['url']}".encode('utf-8')).hexdigest()[:16]
-            events.append(TechEvent(
-                id=item_id,
-                title=s["title"],
-                event_type=s["event_type"],
-                is_virtual=s["is_virtual"],
-                city_location=s["city_location"],
-                event_date=s["event_date"],
-                url=s["url"],
-                stack_tags=s["stack_tags"],
-                summary=s["summary"]
-            ))
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
 
-        # 2. Ingest live RSS feeds
-        for feed in KNOWN_EVENT_FEEDS:
-            name = feed["name"]
-            url = feed["url"]
-            def_type = feed["default_type"]
-            
+        for topic in KNOWN_EVENT_TOPICS:
+            url = f"https://raw.githubusercontent.com/tech-conferences/conference-data/main/conferences/2026/{topic}.json"
             try:
-                parsed = feedparser.parse(url)
-                for entry in parsed.entries[:8]:
-                    title = entry.get("title", "").strip()
-                    summary = entry.get("summary", entry.get("description", "")).strip()
-                    link = entry.get("link", url)
+                res = requests.get(url, headers=headers, timeout=6)
+                if res.status_code != 200:
+                    continue
+                
+                raw_list = res.json()
+                if not isinstance(raw_list, list):
+                    continue
 
-                    if not title:
+                for item in raw_list:
+                    name = item.get("name", "").strip()
+                    event_url = item.get("url", "").strip()
+                    if not name or not event_url or event_url in seen_urls:
                         continue
 
-                    e_type = self._determine_event_type(title, summary, def_type)
-                    tags = self._extract_stack_tags(title, summary)
-                    item_id = hashlib.sha256(f"{name}:{title}:{link}".encode('utf-8')).hexdigest()[:16]
+                    seen_urls.add(event_url)
 
-                    is_virt = "online" in f"{title} {summary}".lower() or "virtual" in f"{title} {summary}".lower() or e_type in ["hackathon", "webinar"]
+                    is_online = bool(item.get("online", False))
+                    raw_city = item.get("city", "")
+                    country = item.get("country", "")
+                    start_date = item.get("startDate", "2026")
+                    
+                    city_name = "Online" if is_online and not raw_city else self._normalize_city_name(raw_city)
+
+                    summary_parts = []
+                    if country and not is_online:
+                        summary_parts.append(f"In-person developer event hosted in {city_name}, {country}.")
+                    elif is_online:
+                        summary_parts.append("Global virtual developer summit accessible worldwide.")
+                    
+                    if item.get("cfpUrl"):
+                        summary_parts.append("Call for Proposals (CFP) is active for speakers.")
+
+                    summary = " ".join(summary_parts) if summary_parts else f"Premier developer gathering for {topic.upper()} professionals."
+
+                    e_type = self._determine_event_type(name, summary, is_online)
+                    tags = self._extract_stack_tags(f"{name} {topic}", summary)
+                    item_id = hashlib.sha256(f"{name}:{event_url}".encode('utf-8')).hexdigest()[:16]
 
                     events.append(TechEvent(
                         id=item_id,
-                        title=title,
+                        title=name,
                         event_type=e_type,
-                        is_virtual=is_virt,
-                        city_location="Online" if is_virt else "Global",
-                        event_date="Upcoming 2026",
-                        url=link,
+                        is_virtual=is_online,
+                        city_location=city_name,
+                        event_date=start_date,
+                        url=event_url,
                         stack_tags=tags,
-                        summary=summary[:250] + "..." if len(summary) > 250 else summary
+                        summary=summary
                     ))
             except Exception as e:
-                logger.error(f"Error fetching event feed '{name}': {e}")
+                logger.error(f"Error fetching real events for topic '{topic}': {e}")
 
-        logger.info(f"Ingested {len(events)} tech events, hackathons, and webinars.")
+        logger.info(f"Ingested {len(events)} 100% REAL-WORLD tech events & conferences.")
         return events
+
+    def fetch_events(self) -> List[TechEvent]:
+        # Ingest 100% Real-World tech events
+        return self.fetch_real_tech_conferences()
 
 def ingest_tech_events() -> List[TechEvent]:
     ingestor = EventsIngestor()

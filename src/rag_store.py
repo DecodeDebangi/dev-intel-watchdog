@@ -194,12 +194,17 @@ class LocalRAGStore:
                     "created_at": r[9]
                 }
 
-                # Filter by city if specified (or virtual/global)
+                # Filter by city if specified
                 if city and city.lower() not in ["online / global", "all", "global"]:
                     is_city_match = r[4] and city.lower() in r[4].lower()
-                    is_virtual_or_global = bool(r[3]) or (r[4] and r[4].lower() in ["online", "global"])
-                    if not (is_city_match or is_virtual_or_global):
-                        continue
+                    if not is_city_match:
+                        # Local meetups or non-virtual events must match the city strictly
+                        if r[2] == "local_meetup" or not bool(r[3]):
+                            continue
+                        # Virtual hackathons/webinars can be shown alongside city events
+                        is_virtual = bool(r[3]) or (r[4] and r[4].lower() in ["online", "global"])
+                        if not is_virtual:
+                            continue
 
                 # Filter by event type if specified
                 if event_type and event_type != "all" and r[2] != event_type:
