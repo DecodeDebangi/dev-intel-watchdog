@@ -831,15 +831,19 @@
             </div>
         </div>
 
-        <!-- Local Meetup City Filter Banner with Dynamic Autocomplete Datalist -->
+        <!-- Local Meetup City Filter Banner with Quick Dropdown Select + Input -->
         <div id="localCityBanner" style="display:none; align-items:center; justify-content:space-between; gap:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); padding:12px 16px; border-radius:12px;">
             <div style="display:flex; align-items:center; gap:10px; flex:1; flex-wrap:wrap;">
                 <span style="font-size:13px; font-weight:700; color:#6ee7b7;">📍 Your City (Local Meetups):</span>
-                <form onsubmit="handleUpdateCity(event)" style="display:flex; gap:8px; flex:1; max-width:340px;">
-                    <input type="text" id="userCityInput" list="availableCitiesList" class="add-dep-input" placeholder="Type city (e.g. Bengaluru, SF, Mumbai...)" style="padding:6px 12px; font-size:12px;" required oninput="handleCityInputChanged(event)" />
-                    <datalist id="availableCitiesList">
-                        <!-- Populated dynamically with active event cities -->
-                    </datalist>
+                <form onsubmit="handleUpdateCity(event)" style="display:flex; gap:8px; flex:1; max-width:480px; align-items:center;">
+                    <!-- Dropdown Select of Active Event Cities -->
+                    <select id="userCitySelect" class="add-dep-input" onchange="handleCitySelectChanged(event)" style="padding:6px 10px; font-size:12px; background:rgba(0,0,0,0.5); color:var(--text-main); border:1px solid var(--card-border); border-radius:6px; cursor:pointer;">
+                        <option value="">-- Active Event Cities --</option>
+                    </select>
+
+                    <!-- Text input for typing custom city -->
+                    <input type="text" id="userCityInput" class="add-dep-input" placeholder="Type city (e.g. Bengaluru)..." style="padding:6px 12px; font-size:12px;" />
+
                     <button type="submit" class="btn-sm btn-accent-sm" style="background:rgba(16,185,129,0.2); border-color:rgba(16,185,129,0.4); color:#6ee7b7;">Set City</button>
                 </form>
             </div>
@@ -930,9 +934,9 @@
             }
         }
 
-        function populateCityDatalist() {
-            const datalist = document.getElementById('availableCitiesList');
-            if (!datalist) return;
+        function populateCityDropdown() {
+            const selectEl = document.getElementById('userCitySelect');
+            if (!selectEl) return;
 
             const cityCounts = {};
             (currentEvents || []).forEach(e => {
@@ -943,19 +947,20 @@
             });
 
             const uniqueCities = Object.keys(cityCounts).sort();
-            datalist.innerHTML = uniqueCities.map(c => `
-                <option value="${escapeHtml(c)}">${escapeHtml(c)} (${cityCounts[c]} active event${cityCounts[c] > 1 ? 's' : ''})</option>
-            `).join('');
+            const currentCity = (currentStack ? currentStack.user_city : '') || '';
+
+            selectEl.innerHTML = `<option value="">-- Active Event Cities --</option>` +
+                uniqueCities.map(c => `
+                    <option value="${escapeHtml(c)}" ${c.toLowerCase() === currentCity.toLowerCase() ? 'selected' : ''}>
+                        ${escapeHtml(c)} (${cityCounts[c]} event${cityCounts[c] > 1 ? 's' : ''})
+                    </option>
+                `).join('');
         }
 
-        function handleCityInputChanged(e) {
-            const val = e.target.value.trim();
-            const datalist = document.getElementById('availableCitiesList');
-            if (!datalist) return;
-
-            const options = Array.from(datalist.options).map(o => o.value);
-            if (options.includes(val)) {
-                // Auto-submit if exact city selected from dropdown
+        function handleCitySelectChanged(e) {
+            const selectedCity = e.target.value;
+            if (selectedCity) {
+                document.getElementById('userCityInput').value = selectedCity;
                 handleUpdateCity(e);
             }
         }
@@ -1002,10 +1007,16 @@
         }
 
         async function handleUpdateCity(e) {
-            e.preventDefault();
+            if (e && e.preventDefault) e.preventDefault();
             const input = document.getElementById('userCityInput');
-            const city = input.value.trim();
-            if (!city) return;
+            const selectEl = document.getElementById('userCitySelect');
+            
+            // Prefer input value, fallback to select value
+            const city = input.value.trim() || (selectEl ? selectEl.value : '');
+            if (!city) {
+                alert("Please select or type a city name.");
+                return;
+            }
 
             try {
                 const res = await fetch('/api/events/city', {
@@ -1014,7 +1025,8 @@
                     body: JSON.stringify({ city })
                 });
                 currentStack = (await res.json()).profile;
-                input.value = '';
+                // Keep input filled with the saved city!
+                input.value = currentStack.user_city || city;
                 renderStack();
                 fetchStats();
                 if (activeViewMode === 'events') fetchEvents();
@@ -1035,7 +1047,12 @@
                 
                 const cityVal = stats.user_city || "Online / Global";
                 document.getElementById('userCityBadge').innerText = cityVal;
-                document.getElementById('userCityInput').placeholder = cityVal;
+                
+                // Keep city input box filled with active city
+                const cityInput = document.getElementById('userCityInput');
+                if (cityInput && !cityInput.value && stats.user_city && stats.user_city !== "Online / Global") {
+                    cityInput.value = stats.user_city;
+                }
             } catch (err) {
                 console.error("Error fetching stats:", err);
             }
@@ -1058,7 +1075,7 @@
                 const res = await fetch(`/api/events${city ? `?city=${encodeURIComponent(city)}` : ''}`);
                 const data = await res.json();
                 currentEvents = data.events || [];
-                populateCityDatalist();
+                populateCityDropdown();
                 renderEvents();
             } catch (err) {
                 console.error("Error fetching events:", err);
