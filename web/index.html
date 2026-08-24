@@ -48,7 +48,7 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 16px;
             backdrop-filter: blur(16px);
             flex-shrink: 0;
             box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
@@ -109,7 +109,7 @@
         .sidebar-body {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
             flex: 1;
             min-height: 0;
         }
@@ -118,7 +118,7 @@
             background: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: 14px;
-            padding: 12px 14px;
+            padding: 14px 16px;
             display: flex;
             flex-direction: column;
             backdrop-filter: blur(10px);
@@ -137,7 +137,7 @@
             text-transform: uppercase;
             letter-spacing: 0.8px;
             color: var(--text-muted);
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -148,7 +148,7 @@
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             flex-shrink: 0;
         }
 
@@ -182,7 +182,7 @@
             background: rgba(0,0,0,0.25);
             padding: 3px;
             border-radius: 8px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             flex-shrink: 0;
         }
 
@@ -203,7 +203,7 @@
         .add-dep-form {
             display: flex;
             gap: 6px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             flex-shrink: 0;
         }
 
@@ -665,18 +665,6 @@
         </div>
 
         <div class="sidebar-body" id="sidebarBody">
-            <!-- User Location / City Section -->
-            <div class="sidebar-section" style="flex: 0.4; min-height: 0;">
-                <div class="sidebar-title">
-                    <span>📍 Your City</span>
-                    <span id="userCityBadge" style="color:var(--warning); font-weight:700;">Global</span>
-                </div>
-                <form class="add-dep-form" onsubmit="handleUpdateCity(event)" style="margin-bottom:0;">
-                    <input type="text" id="userCityInput" class="add-dep-input" placeholder="e.g. Bengaluru, SF, London..." required />
-                    <button type="submit" class="btn-sm btn-accent-sm">Save</button>
-                </form>
-            </div>
-
             <!-- Active Stack Section -->
             <div class="sidebar-section active-section">
                 <div class="sidebar-title">
@@ -843,6 +831,20 @@
             </div>
         </div>
 
+        <!-- Local Meetup City Filter Banner (Inside Local Meetups Tab) -->
+        <div id="localCityBanner" style="display:none; align-items:center; justify-content:space-between; gap:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); padding:12px 16px; border-radius:12px;">
+            <div style="display:flex; align-items:center; gap:10px; flex:1; flex-wrap:wrap;">
+                <span style="font-size:13px; font-weight:700; color:#6ee7b7;">📍 Filter Local Meetups by City:</span>
+                <form onsubmit="handleUpdateCity(event)" style="display:flex; gap:8px; flex:1; max-width:320px;">
+                    <input type="text" id="userCityInput" class="add-dep-input" placeholder="e.g. Bengaluru, SF, London..." style="padding:6px 12px; font-size:12px;" required />
+                    <button type="submit" class="btn-sm btn-accent-sm" style="background:rgba(16,185,129,0.2); border-color:rgba(16,185,129,0.4); color:#6ee7b7;">Set City</button>
+                </form>
+            </div>
+            <div style="font-size:12px; color:var(--text-muted);">
+                Active City: <strong id="userCityBadge" style="color:var(--warning);">Global</strong>
+            </div>
+        </div>
+
         <!-- Intelligence Feed Container -->
         <div class="feed-container" id="feedContainer">
             <!-- Feed cards populated dynamically -->
@@ -916,7 +918,11 @@
             document.getElementById('eventsHeaderSection').style.display = mode === 'events' ? 'flex' : 'none';
             document.getElementById('eventsContainer').style.display = mode === 'events' ? 'flex' : 'none';
 
-            if (mode === 'events') fetchEvents();
+            if (mode === 'events') {
+                fetchEvents();
+            } else {
+                document.getElementById('localCityBanner').style.display = 'none';
+            }
         }
 
         function toggleMobileSidebar() {
@@ -1046,6 +1052,9 @@
             if (filter === 'webinar') document.getElementById('tabEvWebinar').classList.add('active');
             if (filter === 'local_meetup') document.getElementById('tabEvMeetup').classList.add('active');
             if (filter === 'global_conference') document.getElementById('tabEvConf').classList.add('active');
+
+            // Show City filter banner when Local Meetups is selected
+            document.getElementById('localCityBanner').style.display = (filter === 'local_meetup' || filter === 'all') ? 'flex' : 'none';
 
             renderEvents();
         }
