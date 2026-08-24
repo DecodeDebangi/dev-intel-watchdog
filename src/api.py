@@ -40,13 +40,17 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+
+# Shared singleton instances for reduced GC & file handle overhead
+rag_store_instance = LocalRAGStore()
+feed_ingestor_instance = FeedIngestor()
 
 class DependencyPayload(BaseModel):
     dependency: str

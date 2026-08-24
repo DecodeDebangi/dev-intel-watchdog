@@ -2,6 +2,7 @@ import os
 import json
 import re
 import time
+import html
 import logging
 from typing import Dict, Any, List, Tuple
 from pydantic import BaseModel, Field
@@ -21,7 +22,7 @@ def clean_html_text(text: str) -> str:
     if not text:
         return ""
     clean = re.sub(r'<[^>]+>', ' ', text)
-    clean = clean.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
+    clean = html.unescape(clean)
     return re.sub(r'\s+', ' ', clean).strip()
 
 def classify_report_category(title: str, text: str, action_required: bool) -> str:
