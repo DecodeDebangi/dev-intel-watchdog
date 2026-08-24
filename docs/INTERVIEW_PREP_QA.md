@@ -5,28 +5,30 @@ This document is an exhaustive technical interview preparation guide for the **D
 ---
 
 ## 📋 Table of Contents
-1. [Architecture & System Design Questions](#1-architecture--system-design-questions)
-2. [Retrieval-Augmented Generation (RAG) & Vector Search Questions](#2-retrieval-augmented-generation-rag--vector-search-questions)
-3. [Database & Storage Strategy: SQL vs. NoSQL Questions](#3-database--storage-strategy-sql-vs-nosql-questions)
-4. [Data Ingestion & Pipeline Reliability Questions](#4-data-ingestion--pipeline-reliability-questions)
-5. [Security Evaluation & Consensus Algorithm Questions](#5-security-evaluation--consensus-algorithm-questions)
-6. [Frontend Engineering & UX Performance Questions](#6-frontend-engineering--ux-performance-questions)
-7. [API Design, Async Protocol & Pipeline Reliability Questions](#7-api-design-async-protocol--pipeline-reliability-questions)
-8. [Circular Follow-Up & Deep Technical Drill Questions](#8-circular-follow-up--deep-technical-drill-questions)
-9. [Enterprise Scaling & Production Readiness Questions](#9-enterprise-scaling--production-readiness-questions)
-10. [LLM Prompt Engineering & Output Validation Questions](#10-llm-prompt-engineering--output-validation-questions)
-11. [API Middleware, CORS & Documentation Questions](#11-api-middleware-cors--documentation-questions)
-12. [Advanced Vector Mathematics & Search Algorithms Questions](#12-advanced-vector-mathematics--search-algorithms-questions)
-13. [Data Invalidation, TTL & Pipeline Resilience Questions](#13-data-invalidation-ttl--pipeline-resilience-questions)
-14. [CSS Design Systems & Responsive Layout Engineering Questions](#14-css-design-systems--responsive-layout-engineering-questions)
-15. [Testing, DevOps & Version Control Questions](#15-testing-devops--version-control-questions)
-16. [Python Advanced Concepts & Design Patterns Questions](#16-python-advanced-concepts--design-patterns-questions)
-17. [SQL Security, Injection Prevention & Database Optimization Questions](#17-sql-security-injection-prevention--database-optimization-questions)
-18. [Web Security, XSS & Defensive Engineering Questions](#18-web-security-xss--defensive-engineering-questions)
-19. [Performance Optimization & Memory Management Questions](#19-performance-optimization--memory-management-questions)
-20. [System Orchestration & CLI Architecture Questions](#20-system-orchestration--cli-architecture-questions)
+1. [Architecture & System Design Questions](#section-1)
+2. [Retrieval-Augmented Generation (RAG) & Vector Search Questions](#section-2)
+3. [Database & Storage Strategy: SQL vs. NoSQL Questions](#section-3)
+4. [Data Ingestion & Pipeline Reliability Questions](#section-4)
+5. [Security Evaluation & Consensus Algorithm Questions](#section-5)
+6. [Frontend Engineering & UX Performance Questions](#section-6)
+7. [API Design, Async Protocol & Pipeline Reliability Questions](#section-7)
+8. [Circular Follow-Up & Deep Technical Drill Questions](#section-8)
+9. [Enterprise Scaling & Production Readiness Questions](#section-9)
+10. [LLM Prompt Engineering & Output Validation Questions](#section-10)
+11. [API Middleware, CORS & Documentation Questions](#section-11)
+12. [Advanced Vector Mathematics & Search Algorithms Questions](#section-12)
+13. [Data Invalidation, TTL & Pipeline Resilience Questions](#section-13)
+14. [CSS Design Systems & Responsive Layout Engineering Questions](#section-14)
+15. [Testing, DevOps & Version Control Questions](#section-15)
+16. [Python Advanced Concepts & Design Patterns Questions](#section-16)
+17. [SQL Security, Injection Prevention & Database Optimization Questions](#section-17)
+18. [Web Security, XSS & Defensive Engineering Questions](#section-18)
+19. [Performance Optimization & Memory Management Questions](#section-19)
+20. [System Orchestration & CLI Architecture Questions](#section-20)
 
 ---
+
+<div id="section-1"></div>
 
 ## 1. Architecture & System Design Questions
 
@@ -70,6 +72,8 @@ The system is built as an autonomous developer intelligence and ecosystem monito
 Asynchronous I/O allows a single execution thread to manage concurrent operations without thread blocking. When an async function initiates a non-blocking I/O operation (e.g., waiting for HTTP responses or database reads), the Python event loop yields control to execute other incoming requests. FastAPI utilizes Starlette's `asyncio` event loop, enabling high concurrent request throughput.
 
 ---
+
+<div id="section-2"></div>
 
 ## 2. Retrieval-Augmented Generation (RAG) & Vector Search Questions
 
@@ -123,6 +127,8 @@ $$\text{Cosine Similarity}(A, B) = \frac{A \cdot B}{\|A\| \|B\|} = \frac{\sum_{i
 
 ---
 
+<div id="section-3"></div>
+
 ## 3. Database & Storage Strategy: SQL vs. NoSQL Questions
 
 ### Q3.1: Have you used SQL in this project? Why SQLite and not MongoDB or PostgreSQL?
@@ -151,6 +157,8 @@ SQLite provides native JSON support. In Watchdog, array structures such as `stac
 
 ---
 
+<div id="section-4"></div>
+
 ## 4. Data Ingestion & Pipeline Reliability Questions
 
 ### Q4.1: How do you filter out blog posts and personal experience articles from legitimate tech event listings?
@@ -174,6 +182,8 @@ Additionally, for hackathons, we connected Devpost's public REST API (`https://d
 
 ---
 
+<div id="section-5"></div>
+
 ## 5. Security Evaluation & Consensus Algorithm Questions
 
 ### Q5.1: How does the Watchdog determine if a vulnerability report is urgent for a developer?
@@ -192,6 +202,8 @@ When multiple feeds emit reports covering the same library or CVE, `src/analyzer
 - If 3 independent security feeds (e.g., PyPI Security, NVD CVE, Node.js Security) report the exact same package vulnerability, `consensus_weight = 3.0`. Higher consensus weights increase visibility on the dashboard.
 
 ---
+
+<div id="section-6"></div>
 
 ## 6. Frontend Engineering & UX Performance Questions
 
@@ -232,6 +244,8 @@ function escapeHtml(text) {
 
 ---
 
+<div id="section-7"></div>
+
 ## 7. API Design, Async Protocol & Pipeline Reliability Questions
 
 ### Q7.1: How do you prevent blocking HTTP server threads during long-running ingestion runs?
@@ -240,6 +254,8 @@ We utilize FastAPI's `BackgroundTasks`:
 Endpoints like `POST /api/events/run` and `POST /api/watchdog/run` register background worker functions (`run_events_pipeline`, `run_watchdog_pipeline`) with `background_tasks.add_task()` and return an immediate HTTP 200 JSON response (`{"status": "started"}`). Ingestion runs in a background thread without blocking web clients.
 
 ---
+
+<div id="section-8"></div>
 
 ## 8. Circular Follow-Up & Deep Technical Drill Questions (Hard Level)
 
@@ -273,6 +289,8 @@ Endpoints like `POST /api/events/run` and `POST /api/watchdog/run` register back
 
 ---
 
+<div id="section-9"></div>
+
 ## 9. Enterprise Scaling & Production Readiness Questions
 
 ### Q9.1: If this system scaled to 100,000 enterprise developers, how would you redesign the architecture?
@@ -292,6 +310,8 @@ Endpoints like `POST /api/events/run` and `POST /api/watchdog/run` register back
 - **Local SQLite Cache:** Caches generated report embeddings so identical security bulletins are never re-embedded.
 
 ---
+
+<div id="section-10"></div>
 
 ## 10. LLM Prompt Engineering & Output Validation Questions
 
@@ -314,6 +334,8 @@ Context Window Optimization involves structuring input prompts so that token usa
 
 ---
 
+<div id="section-11"></div>
+
 ## 11. API Middleware, CORS & Documentation Questions
 
 ### Q11.1: What is CORS (Cross-Origin Resource Sharing), and why is `CORSMiddleware` configured in `src/api.py`?
@@ -333,6 +355,8 @@ OpenAPI (formerly Swagger) is a standard specification for describing RESTful AP
 The daemon runner in `main.py` utilizes a background loop with configurable sleeping intervals (`time.sleep(interval_seconds)`). On each cycle, it invokes `run_watchdog_pipeline()` and `run_events_pipeline()` sequentially, logging execution status to console and updating `watchdog.db` without human intervention.
 
 ---
+
+<div id="section-12"></div>
 
 ## 12. Advanced Vector Mathematics & Search Algorithms Questions
 
@@ -360,6 +384,8 @@ When two vectors $A$ and $B$ are L2-normalized, their **Dot Product** ($A \cdot 
 
 ---
 
+<div id="section-13"></div>
+
 ## 13. Data Invalidation, TTL & Pipeline Resilience Questions
 
 ### Q13.1: What is Data Invalidation / Time-To-Live (TTL), and how can stale security alerts or past events be cleaned from SQLite?
@@ -384,6 +410,8 @@ Instead of assuming fixed JSON keys (e.g., `item['title']`), parsing methods use
 Exponential backoff retries a failed HTTP request after increasing delay intervals (e.g., 1s, 2s, 4s, 8s) combined with random jitter. This prevents overwhelming external services during temporary outages while allowing transient network drops to recover gracefully.
 
 ---
+
+<div id="section-14"></div>
 
 ## 14. CSS Design Systems & Responsive Layout Engineering Questions
 
@@ -421,6 +449,8 @@ All UI elements reference these variables. Implementing a theme toggle (e.g. Lig
 
 ---
 
+<div id="section-15"></div>
+
 ## 15. Testing, DevOps & Version Control Questions
 
 ### Q15.1: How would you write unit and integration tests for FastAPI REST endpoints and vector RAG retrieval?
@@ -443,6 +473,8 @@ Secrets (such as `GEMINI_API_KEY` and `GITHUB_TOKEN`) are stored in an un-commit
 - **Pull Request (PR) Workflow:** Allows peer developer review, automated CI test runs, and conflict detection before merging code into production.
 
 ---
+
+<div id="section-16"></div>
 
 ## 16. Python Advanced Concepts & Design Patterns Questions
 
@@ -486,6 +518,8 @@ This builds an `active_dependencies` map (e.g. `{"fastapi": 4, "pydantic": 4, "r
 
 ---
 
+<div id="section-17"></div>
+
 ## 17. SQL Security, Injection Prevention & Database Optimization Questions
 
 ### Q17.1: What is SQL Injection, and how do Parameterized Queries (`?` placeholders in `src/rag_store.py`) prevent it?
@@ -520,6 +554,8 @@ An idempotent operation produces the exact same system state regardless of how m
 
 ---
 
+<div id="section-18"></div>
+
 ## 18. Web Security, XSS & Defensive Engineering Questions
 
 ### Q18.1: What is Cross-Site Scripting (XSS), and how does the dual sanitization pipeline (`_clean_html()` + `escapeHtml()`) eliminate XSS risks?
@@ -542,6 +578,8 @@ Security edge networks (like Cloudflare or Akamai) inspect incoming HTTP request
 Content Security Policy (CSP) is an HTTP header (`Content-Security-Policy`) sent by the server that restricts the resources (scripts, images, stylesheets) the browser is allowed to load. Setting `script-src 'self'` prevents the browser from executing inline scripts or loading untrusted external JavaScript files, providing defense-in-depth against XSS.
 
 ---
+
+<div id="section-19"></div>
 
 ## 19. Performance Optimization & Memory Management Questions
 
@@ -570,6 +608,8 @@ When `web/index.html` loads, `fetchEvents()` fetches the master events list once
 Rendering 10,000 DOM nodes simultaneously causes severe browser lag, high memory consumption, and frame drops. **Pagination / Lazy Loading** limits DOM insertion to a slice of top results (e.g. 50 items per page or loading on scroll). In Watchdog, event lists default to `limit=100`, keeping client DOM tree sizes compact and animations smooth.
 
 ---
+
+<div id="section-20"></div>
 
 ## 20. System Orchestration & CLI Architecture Questions
 
