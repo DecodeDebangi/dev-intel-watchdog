@@ -46,6 +46,8 @@ class LocalRAGStore:
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL;")
+            cursor.execute("PRAGMA synchronous=NORMAL;")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS feed_reports (
                     id TEXT PRIMARY KEY,
@@ -77,6 +79,11 @@ class LocalRAGStore:
                     embedding TEXT
                 )
             """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_city ON tech_events(city_location);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON tech_events(event_type);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_created ON tech_events(created_at DESC);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_reports_created ON feed_reports(created_at DESC);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_reports_action ON feed_reports(action_required);")
             try:
                 cursor.execute("ALTER TABLE feed_reports ADD COLUMN category TEXT")
             except Exception:
