@@ -346,19 +346,21 @@
             color: white;
             border: 1px solid transparent;
             border-radius: 10px;
-            padding: 0 18px;
-            height: 44px;
-            min-height: 44px;
+            padding: 6px 14px;
+            height: 52px;
+            min-height: 52px;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12px;
+            line-height: 1.2;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            text-align: center;
+            gap: 6px;
             transition: all 0.2s;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-            white-space: nowrap;
+            white-space: normal;
             box-sizing: border-box;
         }
 
@@ -369,18 +371,20 @@
             border: 1px solid var(--card-border);
             color: var(--text-main);
             border-radius: 10px;
-            padding: 0 16px;
-            height: 44px;
-            min-height: 44px;
+            padding: 6px 14px;
+            height: 52px;
+            min-height: 52px;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12px;
+            line-height: 1.2;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            text-align: center;
             gap: 6px;
             transition: all 0.2s;
-            white-space: nowrap;
+            white-space: normal;
             box-sizing: border-box;
         }
 
@@ -661,7 +665,7 @@
             .header-bar { flex-direction: column; align-items: stretch; gap: 12px; }
             .header-actions { width: 100%; display: flex; gap: 10px; align-items: center; }
             .header-actions .btn-secondary,
-            .header-actions .action-btn { flex: 1; width: 50%; height: 44px; min-height: 44px; white-space: nowrap; padding: 0 10px; font-size: 12px; justify-content: center; align-items: center; }
+            .header-actions .action-btn { flex: 1; width: 50%; height: 52px; min-height: 52px; white-space: normal; padding: 6px 8px; font-size: 12px; line-height: 1.2; justify-content: center; align-items: center; text-align: center; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
             .stat-card { padding: 14px; }
             .stat-val { font-size: 20px; }
