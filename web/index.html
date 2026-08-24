@@ -831,12 +831,15 @@
             </div>
         </div>
 
-        <!-- Local Meetup City Filter Banner (Inside Local Meetups Tab) -->
+        <!-- Local Meetup City Filter Banner with Dynamic Autocomplete Datalist -->
         <div id="localCityBanner" style="display:none; align-items:center; justify-content:space-between; gap:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); padding:12px 16px; border-radius:12px;">
             <div style="display:flex; align-items:center; gap:10px; flex:1; flex-wrap:wrap;">
-                <span style="font-size:13px; font-weight:700; color:#6ee7b7;">📍 Filter Local Meetups by City:</span>
-                <form onsubmit="handleUpdateCity(event)" style="display:flex; gap:8px; flex:1; max-width:320px;">
-                    <input type="text" id="userCityInput" class="add-dep-input" placeholder="e.g. Bengaluru, SF, London..." style="padding:6px 12px; font-size:12px;" required />
+                <span style="font-size:13px; font-weight:700; color:#6ee7b7;">📍 Your City (Local Meetups):</span>
+                <form onsubmit="handleUpdateCity(event)" style="display:flex; gap:8px; flex:1; max-width:340px;">
+                    <input type="text" id="userCityInput" list="availableCitiesList" class="add-dep-input" placeholder="Type city (e.g. Bengaluru, SF, Mumbai...)" style="padding:6px 12px; font-size:12px;" required oninput="handleCityInputChanged(event)" />
+                    <datalist id="availableCitiesList">
+                        <!-- Populated dynamically with active event cities -->
+                    </datalist>
                     <button type="submit" class="btn-sm btn-accent-sm" style="background:rgba(16,185,129,0.2); border-color:rgba(16,185,129,0.4); color:#6ee7b7;">Set City</button>
                 </form>
             </div>
@@ -920,8 +923,40 @@
 
             if (mode === 'events') {
                 fetchEvents();
+                // Show city banner if Local Meetups tab is active
+                document.getElementById('localCityBanner').style.display = (eventFilter === 'local_meetup' || eventFilter === 'all') ? 'flex' : 'none';
             } else {
                 document.getElementById('localCityBanner').style.display = 'none';
+            }
+        }
+
+        function populateCityDatalist() {
+            const datalist = document.getElementById('availableCitiesList');
+            if (!datalist) return;
+
+            const cityCounts = {};
+            (currentEvents || []).forEach(e => {
+                const city = e.city_location;
+                if (city && !['online', 'global', 'virtual'].includes(city.toLowerCase())) {
+                    cityCounts[city] = (cityCounts[city] || 0) + 1;
+                }
+            });
+
+            const uniqueCities = Object.keys(cityCounts).sort();
+            datalist.innerHTML = uniqueCities.map(c => `
+                <option value="${escapeHtml(c)}">${escapeHtml(c)} (${cityCounts[c]} active event${cityCounts[c] > 1 ? 's' : ''})</option>
+            `).join('');
+        }
+
+        function handleCityInputChanged(e) {
+            const val = e.target.value.trim();
+            const datalist = document.getElementById('availableCitiesList');
+            if (!datalist) return;
+
+            const options = Array.from(datalist.options).map(o => o.value);
+            if (options.includes(val)) {
+                // Auto-submit if exact city selected from dropdown
+                handleUpdateCity(e);
             }
         }
 
@@ -1023,6 +1058,7 @@
                 const res = await fetch(`/api/events${city ? `?city=${encodeURIComponent(city)}` : ''}`);
                 const data = await res.json();
                 currentEvents = data.events || [];
+                populateCityDatalist();
                 renderEvents();
             } catch (err) {
                 console.error("Error fetching events:", err);
@@ -1053,7 +1089,7 @@
             if (filter === 'local_meetup') document.getElementById('tabEvMeetup').classList.add('active');
             if (filter === 'global_conference') document.getElementById('tabEvConf').classList.add('active');
 
-            // Show City filter banner when Local Meetups is selected
+            // Show City filter banner when Local Meetups or All is selected
             document.getElementById('localCityBanner').style.display = (filter === 'local_meetup' || filter === 'all') ? 'flex' : 'none';
 
             renderEvents();
