@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Dev Intel & Security Watchdog</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-bg: rgba(22, 27, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary-accent: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --purple: #a855f7;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(239, 68, 68, 0.08) 0%, transparent 40%);
+        }
+
+        /* Desktop Sticky Sidebar Panel */
+        .sidebar {
+            width: 330px;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            background: rgba(15, 23, 42, 0.9);
+            border-right: 1px solid var(--card-border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            backdrop-filter: blur(16px);
+            flex-shrink: 0;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            font-size: 22px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 10px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .brand-text h1 {
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -0.2px;
+        }
+
+        .brand-text span {
+            font-size: 10px;
+            color: var(--primary-accent);
+            letter-spacing: 0.6px;
+            font-weight: 700;
+        }
+
+        .mobile-toggle-btn {
+            display: none;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .sidebar-body {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .sidebar-section {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            transition: border-color 0.2s;
+        }
+
+        .sidebar-section:hover { border-color: rgba(255, 255, 255, 0.15); }
+        .sidebar-section.active-section { flex: 1.4; min-height: 0; }
+        .sidebar-section.excluded-section { flex: 1.0; min-height: 0; }
+        .sidebar-section.lang-section { flex: 0.5; min-height: 0; }
+
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .toolbar-btns {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .btn-sm {
+            padding: 5px 9px;
+            font-size: 11px;
+            border-radius: 6px;
+            border: 1px solid var(--card-border);
+            background: rgba(255,255,255,0.05);
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-sm:hover {
+            background: rgba(255,255,255,0.12);
+            border-color: var(--primary-accent);
+        }
+
+        .btn-danger-sm { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #fca5a5; }
+        .btn-danger-sm:hover { background: rgba(239, 68, 68, 0.3); }
+
+        .btn-accent-sm { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: #93c5fd; }
+        .btn-accent-sm:hover { background: rgba(59, 130, 246, 0.3); }
+
+        .filter-tabs {
+            display: flex;
+            background: rgba(0,0,0,0.25);
+            padding: 3px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .filter-tab {
+            flex: 1;
+            text-align: center;
+            padding: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .filter-tab.active { background: var(--primary-accent); color: white; }
+
+        .add-dep-form {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .add-dep-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: var(--text-main);
+            font-size: 11px;
+            outline: none;
+        }
+
+        .add-dep-input:focus { border-color: var(--primary-accent); }
+
+        .pill-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
+            align-content: flex-start;
+        }
+
+        .pill-container::-webkit-scrollbar { width: 4px; }
+        .pill-container::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 4px; }
+        .pill-container::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+
+        .pill {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 4px 9px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .pill:hover { border-color: rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.08); }
+        .pill.custom { border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.12); }
+        .pill.excluded { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.12); color: #fca5a5; }
+
+        .pill-count {
+            background: rgba(255, 255, 255, 0.15);
+            color: #d1d5db;
+            font-size: 9px;
+            padding: 1px 5px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .pill-remove { cursor: pointer; color: var(--text-muted); font-size: 12px; font-weight: bold; line-height: 1; }
+        .pill-remove:hover { color: var(--danger); }
+        .pill-checkbox { cursor: pointer; width: 13px; height: 13px; accent-color: var(--primary-accent); }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            padding: 32px 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+        }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box { position: relative; flex: 1; min-width: 280px; }
+
+        .search-input {
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 12px 16px 12px 44px;
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, var(--primary-accent), #2563eb);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            white-space: nowrap;
+        }
+
+        .action-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4); }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); border-color: var(--primary-accent); }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 18px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-val { font-size: 26px; font-weight: 700; margin-top: 4px; }
+        .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+
+        /* Feed Navigation Category Filter Tabs */
+        .feed-header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 12px;
+        }
+
+        .feed-nav-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .feed-nav-tab {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .feed-nav-tab:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-main); }
+
+        .feed-nav-tab.active { background: rgba(59, 130, 246, 0.15); border-color: var(--primary-accent); color: #93c5fd; }
+        .feed-nav-tab.active.sec-tab { background: rgba(239, 68, 68, 0.15); border-color: var(--danger); color: #fca5a5; }
+        .feed-nav-tab.active.pkg-tab { background: rgba(16, 185, 129, 0.15); border-color: var(--success); color: #6ee7b7; }
+        .feed-nav-tab.active.devops-tab { background: rgba(245, 158, 11, 0.15); border-color: var(--warning); color: #fcd34d; }
+        .feed-nav-tab.active.ai-tab { background: rgba(168, 85, 247, 0.15); border-color: var(--purple); color: #d8b4fe; }
+
+        .badge-count {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .feed-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .feed-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative;
+        }
+
+        .feed-card:hover { border-color: rgba(255, 255, 255, 0.18); }
+        .feed-card.urgent { border-left: 4px solid var(--danger); }
+
+        .feed-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .feed-card-title { font-size: 16px; font-weight: 600; line-height: 1.3; }
+
+        .feed-card-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tag-group { display: flex; align-items: center; gap: 6px; }
+
+        .tag {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tag-urgent { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .tag-cat-sec { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .tag-cat-pkg { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .tag-cat-devops { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .tag-cat-ai { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.3); }
+
+        .feed-card-body { font-size: 13px; color: #d1d5db; line-height: 1.5; }
+
+        .affected-deps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+        .dep-badge {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 12px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .card-link { color: var(--primary-accent); text-decoration: none; font-weight: 500; }
+        .card-link:hover { text-decoration: underline; }
+
+        /* Modal styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .modal-content {
+            background: #111827;
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 540px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-size: 16px; font-weight: 700; }
+
+        .modal-textarea {
+            width: 100%;
+            height: 140px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            outline: none;
+            resize: vertical;
+        }
+
+        .modal-textarea:focus { border-color: var(--primary-accent); }
+
+        .source-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+        }
+
+        .source-info { display: flex; flex-direction: column; gap: 2px; }
+        .source-name { font-size: 13px; font-weight: 600; }
+        .source-reason { font-size: 11px; color: var(--text-muted); }
+
+        /* Switch Toggle */
+        .switch { position: relative; display: inline-block; width: 38px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.15); transition: .3s; border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
+            background-color: white; transition: .3s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--primary-accent); }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        /* RESPONSIVE MEDIA QUERIES */
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 850px) {
+            body { flex-direction: column; }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                border-right: none;
+                border-bottom: 1px solid var(--card-border);
+                padding: 16px;
+                gap: 14px;
+            }
+            .mobile-toggle-btn { display: inline-flex; align-items: center; gap: 6px; }
+            .sidebar-body { display: none; flex-direction: column; gap: 14px; }
+            .sidebar-body.open { display: flex; }
+            .sidebar-section { flex: none !important; }
+            .pill-container { max-height: 200px; }
+            .main-content { padding: 20px 16px; gap: 20px; }
+            .header-bar { flex-direction: column; align-items: stretch; }
+            .action-btn { width: 100%; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .stat-card { padding: 14px; }
+            .stat-val { font-size: 20px; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .feed-card { padding: 16px; }
+            .feed-card-title { font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Stack Context Panel (Sticky Left) -->
+    <div class="sidebar">
+        <div class="brand">
+            <div class="brand-logo">
+                <div class="brand-icon">🛡️</div>
+                <div class="brand-text">
+                    <h1>DEV INTEL</h1>
+                    <span>SECURITY WATCHDOG</span>
+                </div>
+            </div>
+            <button class="mobile-toggle-btn" onclick="toggleMobileSidebar()">
+                <span id="mobileToggleIcon">⚙️ Stack Config</span>
+            </button>
+        </div>
+
+        <div class="sidebar-body" id="sidebarBody">
+            <!-- Active Stack Section -->
+            <div class="sidebar-section active-section">
+                <div class="sidebar-title">
+                    <span>Active Stack</span>
+                    <span id="activeCountBadge" style="color:var(--primary-accent); font-weight:700;">0</span>
+                </div>
+
+                <div class="filter-tabs">
+                    <div class="filter-tab active" onclick="setTab('all')">All</div>
+                    <div class="filter-tab" onclick="setTab('github')">GitHub</div>
+                    <div class="filter-tab" onclick="setTab('custom')">Custom</div>
+                </div>
+
+                <!-- Quick Batch Controls -->
+                <div class="toolbar-btns">
+                    <button class="btn-sm btn-accent-sm" onclick="triggerCleanNoise()" title="Auto-exclude common ESLint, Babel, Prettier, @types noise">
+                        🧹 Clean Fluff
+                    </button>
+                    <button class="btn-sm" onclick="toggleBatchMode()" id="batchModeBtn">
+                        ☑️ Select Mode
+                    </button>
+                    <button class="btn-sm" onclick="openBulkModal()">
+                        📋 Bulk Paste
+                    </button>
+                </div>
+
+                <!-- Batch Action Bar -->
+                <div id="batchActionBar" style="display:none; margin-bottom:10px; background:rgba(59,130,246,0.1); padding:8px; border-radius:8px; border:1px solid rgba(59,130,246,0.2); flex-shrink:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:11px; font-weight:600; color:#93c5fd;" id="selectedCountText">0 selected</span>
+                        <div style="display:flex; gap:4px;">
+                            <button class="btn-sm" onclick="selectAllPills(true)">Select All</button>
+                            <button class="btn-sm" onclick="selectAllPills(false)">Clear</button>
+                        </div>
+                    </div>
+                    <button class="btn-sm btn-danger-sm" style="width:100%; justify-content:center;" onclick="executeBulkRemove()">
+                        🗑️ Remove Selected Dependencies
+                    </button>
+                </div>
+
+                <form class="add-dep-form" onsubmit="handleAddDependency(event)">
+                    <input type="text" id="addDepInput" class="add-dep-input" placeholder="+ Add dependency..." required />
+                    <button type="submit" class="btn-sm btn-accent-sm">Add</button>
+                </form>
+
+                <div class="pill-container" id="stackPills">
+                    <!-- Stack pills populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Excluded Dependencies Section -->
+            <div class="sidebar-section excluded-section">
+                <div class="sidebar-title">
+                    <span>🚫 Excluded Dependencies</span>
+                    <span id="excludedCountBadge" style="color:var(--danger); font-weight:700;">0</span>
+                </div>
+                <div class="pill-container" id="excludedPills">
+                    <!-- Excluded pills populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Core Languages Section -->
+            <div class="sidebar-section lang-section">
+                <div class="sidebar-title">Core Languages</div>
+                <div class="pill-container" id="langPills">
+                    <!-- Languages populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content" id="mainContentScroll">
+        <div class="header-bar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" class="search-input" placeholder="RAG vector search (e.g. 'python security', 'react CVEs')..." onkeyup="handleSearchKey(event)">
+            </div>
+            <div class="header-actions">
+                <button class="btn-secondary" onclick="openSourcesModal()">
+                    📡 Manage Sources
+                </button>
+                <button class="action-btn" id="runWatchdogBtn" onclick="triggerWatchdogRun()">
+                    ⚡ Ingest & Analyze Feeds
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Active Packages</div>
+                <div class="stat-val" id="statActive" style="color: var(--primary-accent);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Tech Reports</div>
+                <div class="stat-val" id="statReports" style="color: var(--success);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Urgent Alerts</div>
+                <div class="stat-val" id="statUrgent" style="color: var(--danger);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Languages</div>
+                <div class="stat-val" id="statLanguages" style="color: var(--warning);">0</div>
+            </div>
+        </div>
+
+        <!-- Feed Filtering Section (Developer Categories) -->
+        <div class="feed-header-section">
+            <div class="feed-nav-tabs">
+                <button class="feed-nav-tab active" id="tabCatAll" onclick="setFeedFilter('all')">
+                    <span>All Reports</span>
+                    <span class="badge-count" id="badgeAllCount">0</span>
+                </button>
+                <button class="feed-nav-tab sec-tab" id="tabCatSec" onclick="setFeedFilter('Security & CVEs')">
+                    <span>🚨 Security & CVEs</span>
+                    <span class="badge-count" style="background:rgba(239,68,68,0.3); color:#fca5a5;" id="badgeSecCount">0</span>
+                </button>
+                <button class="feed-nav-tab pkg-tab" id="tabCatPkg" onclick="setFeedFilter('Package Releases')">
+                    <span>📦 Package Releases</span>
+                    <span class="badge-count" style="background:rgba(16,185,129,0.3); color:#6ee7b7;" id="badgePkgCount">0</span>
+                </button>
+                <button class="feed-nav-tab devops-tab" id="tabCatDevOps" onclick="setFeedFilter('DevOps & Cloud')">
+                    <span>⚡ DevOps & Cloud</span>
+                    <span class="badge-count" style="background:rgba(245,158,11,0.3); color:#fcd34d;" id="badgeDevOpsCount">0</span>
+                </button>
+                <button class="feed-nav-tab ai-tab" id="tabCatAI" onclick="setFeedFilter('AI & Ecosystem')">
+                    <span>💡 AI & Ecosystem</span>
+                    <span class="badge-count" style="background:rgba(168,85,247,0.3); color:#d8b4fe;" id="badgeAICount">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Intelligence Feed List -->
+        <div class="feed-container" id="feedContainer">
+            <!-- Feed cards populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Bulk Paste Modal -->
+    <div class="modal-overlay" id="bulkModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📋 Bulk Exclude Dependencies</div>
+                <button class="btn-sm" onclick="closeBulkModal()">✕</button>
+            </div>
+            <p style="font-size:12px; color:var(--text-muted);">Paste a list of dependency names separated by commas, spaces, or newlines:</p>
+            <textarea id="bulkTextarea" class="modal-textarea" placeholder="eslint, prettier, @types/node, babel, pytest, husky..."></textarea>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button class="btn-sm" onclick="closeBulkModal()">Cancel</button>
+                <button class="btn-sm btn-danger-sm" onclick="handleBulkPasteSubmit()">Exclude All Listed</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feed Sources Modal -->
+    <div class="modal-overlay" id="sourcesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📡 Manage Feed Sources & Smart Subscription</div>
+                <button class="btn-sm" onclick="closeSourcesModal()">✕</button>
+            </div>
+            <p style="font-size:12px; color:var(--text-muted);">Feeds are automatically enabled or muted based on your active stack languages. You can manually toggle any feed on or off below:</p>
+            <div id="sourcesList" style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto;">
+                <!-- Dynamically populated feed sources -->
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                <button class="btn-sm btn-accent-sm" onclick="resetFeedSources()">🔄 Reset to Auto-Detect</button>
+                <button class="btn-sm" onclick="closeSourcesModal()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStack = null;
+        let currentReports = [];
+        let currentTab = 'all';
+        let feedFilter = 'all';
+        let isBatchMode = false;
+        let selectedPills = new Set();
+        let isMobileSidebarOpen = false;
+
+        // Lazy Loading Infinite Scroll state
+        let pageLimit = 15;
+        let pageStep = 15;
+        let intersectionObserver = null;
+
+        function toggleMobileSidebar() {
+            isMobileSidebarOpen = !isMobileSidebarOpen;
+            const body = document.getElementById('sidebarBody');
+            const icon = document.getElementById('mobileToggleIcon');
+            if (isMobileSidebarOpen) {
+                body.classList.add('open');
+                icon.innerText = "✕ Close Stack";
+            } else {
+                body.classList.remove('open');
+                icon.innerText = "⚙️ Stack Config";
+            }
+        }
+
+        function stripHtml(html) {
+            if (!html) return '';
+            const tmp = document.createElement('DIV');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || '';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        async function fetchStack() {
+            try {
+                const res = await fetch('/api/stack');
+                currentStack = await res.json();
+                renderStack();
+                fetchStats();
+            } catch (err) {
+                console.error("Error loading stack profile:", err);
+            }
+        }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const stats = await res.json();
+                document.getElementById('statActive').innerText = stats.active_dependencies_count || 0;
+                document.getElementById('statReports').innerText = stats.total_reports_ingested || 0;
+                document.getElementById('statUrgent').innerText = stats.urgent_cve_alerts || 0;
+                document.getElementById('statLanguages').innerText = stats.core_languages_count || 0;
+            } catch (err) {
+                console.error("Error fetching stats:", err);
+            }
+        }
+
+        async function fetchFeed() {
+            try {
+                const res = await fetch('/api/feed?limit=500');
+                const data = await res.json();
+                currentReports = data.reports || [];
+                renderFeed();
+            } catch (err) {
+                console.error("Error fetching feed:", err);
+            }
+        }
+
+        function setFeedFilter(filter) {
+            feedFilter = filter;
+            pageLimit = 15; // Reset lazy loading page count on tab switch
+            document.querySelectorAll('.feed-nav-tab').forEach(el => el.classList.remove('active'));
+
+            if (filter === 'all') document.getElementById('tabCatAll').classList.add('active');
+            if (filter === 'Security & CVEs') document.getElementById('tabCatSec').classList.add('active');
+            if (filter === 'Package Releases') document.getElementById('tabCatPkg').classList.add('active');
+            if (filter === 'DevOps & Cloud') document.getElementById('tabCatDevOps').classList.add('active');
+            if (filter === 'AI & Ecosystem') document.getElementById('tabCatAI').classList.add('active');
+
+            renderFeed();
+        }
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.filter-tab').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            renderStack();
+        }
+
+        function toggleBatchMode() {
+            isBatchMode = !isBatchMode;
+            selectedPills.clear();
+            document.getElementById('batchModeBtn').innerText = isBatchMode ? "✕ Exit Batch" : "☑️ Select Mode";
+            document.getElementById('batchActionBar').style.display = isBatchMode ? "block" : "none";
+            updateSelectedCountText();
+            renderStack();
+        }
+
+        function updateSelectedCountText() {
+            document.getElementById('selectedCountText').innerText = `${selectedPills.size} selected`;
+        }
+
+        function togglePillSelection(depName, checked) {
+            if (checked) {
+                selectedPills.add(depName);
+            } else {
+                selectedPills.delete(depName);
+            }
+            updateSelectedCountText();
+        }
+
+        function selectAllPills(shouldSelect) {
+            const checkboxes = document.querySelectorAll('.pill-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = shouldSelect;
+                const dep = cb.getAttribute('data-dep');
+                if (shouldSelect) selectedPills.add(dep);
+                else selectedPills.delete(dep);
+            });
+            updateSelectedCountText();
+        }
+
+        async function executeBulkRemove() {
+            if (selectedPills.size === 0) {
+                alert("Please select at least one dependency to remove.");
+                return;
+            }
+            const depsArray = Array.from(selectedPills);
+            if (!confirm(`Are you sure you want to remove ${depsArray.length} selected dependencies?`)) return;
+
+            try {
+                const res = await fetch('/api/stack/bulk-remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dependencies: depsArray })
+                });
+                currentStack = (await res.json()).profile;
+                selectedPills.clear();
+                updateSelectedCountText();
+                renderStack();
+                fetchStats();
+            } catch (err) {
+                alert("Error bulk removing dependencies: " + err);
+            }
+        }
+
+        async function triggerCleanNoise() {
+            if (!confirm("Automatically clean and exclude common ESLint, Babel, Prettier, @types, and dev tool noise packages?")) return;
+            try {
+                const res = await fetch('/api/stack/clean-noise', { method: 'POST' });
+                currentStack = (await res.json()).profile;
+                renderStack();
+                fetchStats();
+            } catch (err) {
+                alert("Error cleaning noise: " + err);
+            }
+        }
+
+        function openBulkModal() { document.getElementById('bulkModal').style.display = 'flex'; }
+        function closeBulkModal() { document.getElementById('bulkModal').style.display = 'none'; }
+
+        async function openSourcesModal() {
+            document.getElementById('sourcesModal').style.display = 'flex';
+            await loadSourcesList();
+        }
+
+        function closeSourcesModal() { document.getElementById('sourcesModal').style.display = 'none'; }
+
+        async function loadSourcesList() {
+            try {
+                const res = await fetch('/api/feed/sources');
+                const data = await res.json();
+                const container = document.getElementById('sourcesList');
+
+                container.innerHTML = (data.sources || []).map(s => `
+                    <div class="source-row">
+                        <div class="source-info">
+                            <span class="source-name">${escapeHtml(s.name)}</span>
+                            <span class="source-reason">${escapeHtml(s.reason)}</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleFeedSource('${escapeHtml(s.name)}', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error("Error loading sources list:", err);
+            }
+        }
+
+        async function toggleFeedSource(sourceName, enabled) {
+            try {
+                await fetch('/api/feed/sources', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ preferences: { [sourceName]: enabled } })
+                });
+                await loadSourcesList();
+                await fetchFeed();
+                await fetchStats();
+            } catch (err) {
+                alert("Error updating feed source preference: " + err);
+            }
+        }
+
+        async function resetFeedSources() {
+            try {
+                await fetch('/api/feed/sources/reset', { method: 'POST' });
+                await loadSourcesList();
+                await fetchFeed();
+                await fetchStats();
+            } catch (err) {
+                alert("Error resetting feed sources: " + err);
+            }
+        }
+
+        async function handleBulkPasteSubmit() {
+            const text = document.getElementById('bulkTextarea').value;
+            if (!text.trim()) return;
+
+            const deps = text.split(/[\n,\s]+/).map(s => s.trim()).filter(Boolean);
+            if (deps.length === 0) return;
+
+            try {
+                const res = await fetch('/api/stack/bulk-remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dependencies: deps })
+                });
+                currentStack = (await res.json()).profile;
+                document.getElementById('bulkTextarea').value = '';
+                closeBulkModal();
+                renderStack();
+                fetchStats();
+            } catch (err) {
+                alert("Error bulk processing paste: " + err);
+            }
+        }
+
+        async function handleAddDependency(e) {
+            e.preventDefault();
+            const input = document.getElementById('addDepInput');
+            const dep = input.value.trim();
+            if (!dep) return;
+
+            try {
+                const res = await fetch('/api/stack/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dependency: dep })
+                });
+                const data = await res.json();
+                currentStack = data.profile;
+                input.value = '';
+                renderStack();
+                fetchStats();
+            } catch (err) {
+                alert("Error adding dependency: " + err);
+            }
+        }
+
+        async function handleRemoveDependency(dep) {
+            try {
+                const res = await fetch('/api/stack/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dependency: dep })
+                });
+                const data = await res.json();
+                currentStack = data.profile;
+                renderStack();
+                fetchStats();
+            } catch (err) {
+                alert("Error removing dependency: " + err);
+            }
+        }
+
+        async function handleRestoreDependency(dep) {
+            try {
+                const res = await fetch('/api/stack/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dependency: dep })
+                });
+                const data = await res.json();
+                currentStack = data.profile;
+                renderStack();
+                fetchStats();
+            } catch (err) {
+                alert("Error restoring dependency: " + err);
+            }
+        }
+
+        function renderStack() {
+            if (!currentStack) return;
+
+            const githubSet = new Set(currentStack.github_dependencies || []);
+            const customSet = new Set(currentStack.custom_dependencies || []);
+            const excludedSet = new Set(currentStack.excluded_dependencies || []);
+            const activeList = currentStack.active_dependencies || [];
+            const counts = currentStack.dependency_counts || {};
+
+            let filteredActive = activeList;
+            if (currentTab === 'github') {
+                filteredActive = activeList.filter(d => githubSet.has(d));
+            } else if (currentTab === 'custom') {
+                filteredActive = activeList.filter(d => customSet.has(d));
+            }
+
+            document.getElementById('activeCountBadge').innerText = filteredActive.length;
+            document.getElementById('excludedCountBadge').innerText = excludedSet.size;
+
+            // Render Active Pills
+            const activeContainer = document.getElementById('stackPills');
+            activeContainer.innerHTML = filteredActive.map(dep => {
+                const isCustom = customSet.has(dep);
+                const count = counts[dep] || (isCustom ? 1 : 0);
+                const isChecked = selectedPills.has(dep);
+
+                return `
+                    <div class="pill ${isCustom ? 'custom' : ''}">
+                        ${isBatchMode ? `<input type="checkbox" class="pill-checkbox" data-dep="${escapeHtml(dep)}" ${isChecked ? 'checked' : ''} onchange="togglePillSelection('${escapeHtml(dep)}', this.checked)">` : ''}
+                        <span>${escapeHtml(dep)}</span>
+                        ${count > 0 ? `<span class="pill-count" title="Used in ${count} project repositories">${count}</span>` : ''}
+                        ${!isBatchMode ? `<span class="pill-remove" onclick="handleRemoveDependency('${escapeHtml(dep)}')" title="Exclude this dependency">✕</span>` : ''}
+                    </div>
+                `;
+            }).join('') || '<div style="font-size:12px; color:var(--text-muted); padding:8px;">No active dependencies in this view.</div>';
+
+            // Render Excluded Pills
+            const excludedContainer = document.getElementById('excludedPills');
+            const excludedList = Array.from(excludedSet).sort();
+            excludedContainer.innerHTML = excludedList.map(dep => `
+                <div class="pill excluded">
+                    <span>${escapeHtml(dep)}</span>
+                    <span class="pill-remove" style="color:var(--success);" onclick="handleRestoreDependency('${escapeHtml(dep)}')" title="Restore back to active stack">↩</span>
+                </div>
+            `).join('') || '<div style="font-size:11px; color:var(--text-muted); padding:4px;">No excluded dependencies.</div>';
+
+            // Render Languages
+            const langContainer = document.getElementById('langPills');
+            langContainer.innerHTML = (currentStack.core_languages || []).map(lang => `
+                <div class="pill" style="border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1);">
+                    <span>${escapeHtml(lang)}</span>
+                </div>
+            `).join('') || '<div style="font-size:11px; color:var(--text-muted); padding:4px;">No core languages detected.</div>';
+        }
+
+        function getCategoryTagClass(cat) {
+            if (cat === 'Security & CVEs') return 'tag-cat-sec';
+            if (cat === 'Package Releases') return 'tag-cat-pkg';
+            if (cat === 'DevOps & Cloud') return 'tag-cat-devops';
+            if (cat === 'AI & Ecosystem') return 'tag-cat-ai';
+            return 'tag-cat-pkg';
+        }
+
+        function renderFeed() {
+            const container = document.getElementById('feedContainer');
+            const allReports = currentReports || [];
+
+            // Calculate category counts
+            const secReports = allReports.filter(r => r.category === 'Security & CVEs' || r.action_required);
+            const pkgReports = allReports.filter(r => r.category === 'Package Releases' && !r.action_required);
+            const devopsReports = allReports.filter(r => r.category === 'DevOps & Cloud' && !r.action_required);
+            const aiReports = allReports.filter(r => r.category === 'AI & Ecosystem' && !r.action_required);
+
+            document.getElementById('badgeAllCount').innerText = allReports.length;
+            document.getElementById('badgeSecCount').innerText = secReports.length;
+            document.getElementById('badgePkgCount').innerText = pkgReports.length;
+            document.getElementById('badgeDevOpsCount').innerText = devopsReports.length;
+            document.getElementById('badgeAICount').innerText = aiReports.length;
+
+            let displayedReports = allReports;
+            if (feedFilter === 'Security & CVEs') displayedReports = secReports;
+            if (feedFilter === 'Package Releases') displayedReports = pkgReports;
+            if (feedFilter === 'DevOps & Cloud') displayedReports = devopsReports;
+            if (feedFilter === 'AI & Ecosystem') displayedReports = aiReports;
+
+            if (!displayedReports || displayedReports.length === 0) {
+                container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-muted);">No reports found matching the selected category '${feedFilter}'.</div>`;
+                return;
+            }
+
+            // Lazy loading: slice current page view
+            const visibleSlice = displayedReports.slice(0, pageLimit);
+
+            let cardsHtml = visibleSlice.map(r => {
+                const isUrgent = r.action_required;
+                const catName = r.category || 'Package Releases';
+                const cleanSummary = escapeHtml(stripHtml(r.technical_summary));
+                const cleanTitle = escapeHtml(stripHtml(r.title));
+                const deps = r.affected_dependencies || [];
+                const repoCounts = r.affected_repo_counts || {};
+
+                const depBadges = deps.map(dep => {
+                    const cnt = repoCounts[dep] || 0;
+                    return `<span class="dep-badge">${escapeHtml(dep)}${cnt > 0 ? ` (${cnt} proj)` : ''}</span>`;
+                }).join(' ');
+
+                return `
+                    <div class="feed-card ${isUrgent ? 'urgent' : ''}">
+                        <div class="feed-card-header">
+                            <div>
+                                <div class="tag-group">
+                                    <span class="tag ${getCategoryTagClass(catName)}">${escapeHtml(catName)}</span>
+                                    ${isUrgent ? '<span class="tag tag-urgent">🚨 URGENT PATCH</span>' : ''}
+                                </div>
+                                <h3 class="feed-card-title" style="margin-top: 8px;">${cleanTitle}</h3>
+                            </div>
+                            <div class="feed-card-meta">
+                                <span>${new Date(r.created_at).toLocaleString()}</span>
+                            </div>
+                        </div>
+
+                        <div class="feed-card-body">
+                            ${cleanSummary}
+                        </div>
+
+                        ${deps.length > 0 ? `
+                            <div>
+                                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Affected Stack & Projects:</div>
+                                <div class="affected-deps">${depBadges}</div>
+                            </div>
+                        ` : ''}
+
+                        <div class="card-footer">
+                            <span>Sources: ${escapeHtml((r.all_sources || []).join(', ') || 'Feed Ingestion')}</span>
+                            ${r.canonical_url ? `<a href="${escapeHtml(r.canonical_url)}" target="_blank" class="card-link">Read Original Source ↗</a>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Append Lazy Loading Sentinel at bottom of feed
+            const isFinished = pageLimit >= displayedReports.length;
+            const sentinelHtml = `
+                <div id="lazySentinel" style="text-align: center; padding: 20px 0; color: var(--text-muted); font-size: 12px; font-weight: 600; letter-spacing: 0.4px;">
+                    ${isFinished ? `✓ All ${displayedReports.length} reports loaded` : `⚡ Scroll to load more reports (${visibleSlice.length} of ${displayedReports.length} showing)...`}
+                </div>
+            `;
+
+            container.innerHTML = cardsHtml + sentinelHtml;
+
+            // Setup IntersectionObserver for automatic infinite scroll lazy loading
+            if (intersectionObserver) intersectionObserver.disconnect();
+            if (!isFinished) {
+                intersectionObserver = new IntersectionObserver((entries) => {
+                    if (entries[0].isIntersecting) {
+                        pageLimit += pageStep;
+                        renderFeed();
+                    }
+                }, { rootMargin: '300px' });
+
+                const sentinel = document.getElementById('lazySentinel');
+                if (sentinel) intersectionObserver.observe(sentinel);
+            }
+        }
+
+        async function triggerWatchdogRun() {
+            const btn = document.getElementById('runWatchdogBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `⏳ Processing Feeds in Background...`;
+            }
+            
+            try {
+                const res = await fetch('/api/watchdog/run', { method: 'POST' });
+                const data = await res.json();
+                
+                let attempts = 0;
+                const interval = setInterval(async () => {
+                    attempts++;
+                    await fetchFeed();
+                    await fetchStats();
+                    if (attempts >= 4) {
+                        clearInterval(interval);
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.innerHTML = `⚡ Ingest & Analyze Feeds`;
+                        }
+                    }
+                }, 2500);
+            } catch (err) {
+                alert("Error executing watchdog run: " + err);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `⚡ Ingest & Analyze Feeds`;
+                }
+            }
+        }
+
+        async function handleSearchKey(e) {
+            if (e.key === 'Enter') {
+                const query = e.target.value.trim();
+                pageLimit = 15; // Reset lazy loading limit on search
+                if (!query) {
+                    fetchFeed();
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    currentReports = data.results || [];
+                    renderFeed();
+                } catch (err) {
+                    console.error("Search error:", err);
+                }
+            }
+        }
+
+        // Initialize dashboard on load
+        fetchStack();
+        fetchFeed();
+    </script>
+</body>
+</html>

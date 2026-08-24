@@ -1,8 +1,35 @@
-__pycache__/
-*.pyc
-.env
-*.db
-*.sqlite
-stack_context.json
+# Virtual Environments
 venv/
 .venv/
+env/
+ENV/
+
+# Byte-compiled / Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Environment Variables & API Keys (CRITICAL: DO NOT COMMIT)
+.env
+.env.local
+.env.*.local
+
+# Databases & Runtime Log Files
+*.db
+*.sqlite
+watchdog.db
+rag_store.db
+watchdog.log
+*.log
+
+# Generated Digests & Local Stack Context
+digests/
+stack_context.json
+
+# Operating System & IDE Files
+.DS_Store
+.vscode/
+.idea/
+*.swp

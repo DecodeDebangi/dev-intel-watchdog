@@ -1,0 +1,21 @@
+[project]
+name = "dev-intel-watchdog"
+version = "0.1.0"
+description = "Autonomous Developer Intelligence & Security Watchdog"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "google-genai>=0.1.1",
+    "requests>=2.31.0",
+    "feedparser>=6.0.11",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "python-dotenv>=1.0.1",
+    "rich>=13.7.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
