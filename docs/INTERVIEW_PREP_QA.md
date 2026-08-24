@@ -1,6 +1,6 @@
 # 🎯 Dev Intel Watchdog: 360° Technical Interview Q&A Master Guide
 
-This document is an exhaustive technical interview preparation guide for the **Developer Intelligence & Security Watchdog** platform. It combines foundational concept definitions, system design principles, architectural trade-offs, vector RAG algorithms, database mechanics, frontend performance, and circular drill-down questions.
+This document is an exhaustive technical interview preparation guide for the **Developer Intelligence & Security Watchdog** platform. It combines foundational concept definitions, system design principles, architectural trade-offs, vector RAG algorithms, database mechanics, frontend performance, circular drill-down questions, LLM validation, advanced vector math, and DevOps practices.
 
 ---
 
@@ -14,6 +14,12 @@ This document is an exhaustive technical interview preparation guide for the **D
 7. [API Design, Async Protocol & Pipeline Reliability Questions](#7-api-design-async-protocol--pipeline-reliability-questions)
 8. [Circular Follow-Up & Deep Technical Drill Questions](#8-circular-follow-up--deep-technical-drill-questions)
 9. [Enterprise Scaling & Production Readiness Questions](#9-enterprise-scaling--production-readiness-questions)
+10. [LLM Prompt Engineering & Output Validation Questions](#10-llm-prompt-engineering--output-validation-questions)
+11. [API Middleware, CORS & Documentation Questions](#11-api-middleware-cors--documentation-questions)
+12. [Advanced Vector Mathematics & Search Algorithms Questions](#12-advanced-vector-mathematics--search-algorithms-questions)
+13. [Data Invalidation, TTL & Pipeline Resilience Questions](#13-data-invalidation-ttl--pipeline-resilience-questions)
+14. [CSS Design Systems & Responsive Layout Engineering Questions](#14-css-design-systems--responsive-layout-engineering-questions)
+15. [Testing, DevOps & Version Control Questions](#15-testing-devops--version-control-questions)
 
 ---
 
@@ -279,3 +285,154 @@ Endpoints like `POST /api/events/run` and `POST /api/watchdog/run` register back
 - **Exponential Backoff:** Retries API requests with exponential backoff on HTTP 429 (Rate Limit).
 - **Batch Embedding:** Uses batch vector embedding (`client.models.embed_content`) rather than single item calls.
 - **Local SQLite Cache:** Caches generated report embeddings so identical security bulletins are never re-embedded.
+
+---
+
+## 10. LLM Prompt Engineering & Output Validation Questions
+
+### Q10.1: How do you structure system prompts to force strict JSON outputs from Gemini 2.5 Flash without markdown codeblocks?
+**Answer:**  
+In `src/analyzer.py`, we instruct Gemini using explicit schema definition prompts and specify `response_mime_type="application/json"` in `GenerateContentConfig`. We also sanitize LLM output text programmatically by stripping triple-backtick markdown blocks (````json ... ````) before passing the string to `json.loads()`.
+
+---
+
+### Q10.2: What is Context Window Optimization, and how do you handle prompt token limits when processing multiple security RSS items?
+**Answer:**  
+Context Window Optimization involves structuring input prompts so that token usage remains within model bounds while retaining maximum information density. In Watchdog, rather than sending entire HTML blog posts to Gemini, we extract plain text, truncate summaries to 1,500 characters per item, and batch process items in groups of 10. Gemini 2.5 Flash's 1-million token context window easily handles large RSS batches without hitting context cutoffs.
+
+---
+
+### Q10.3: How do you evaluate and prevent LLM hallucinations when summarizing CVE severity and package impact?
+**Answer:**  
+- **Grounding with Explicit Input Context:** We pass exact package names from `stack_context.json` into the prompt, instructing the model to ONLY evaluate matches against the provided list.
+- **Pydantic Validation:** The generated output is parsed into a Pydantic `FeedReport` model. If a field fails validation (e.g. invalid severity level or missing keys), the record is discarded or logged for retry rather than persisting bad state.
+
+---
+
+## 11. API Middleware, CORS & Documentation Questions
+
+### Q11.1: What is CORS (Cross-Origin Resource Sharing), and why is `CORSMiddleware` configured in `src/api.py`?
+**Answer:**  
+CORS is a browser security mechanism that restricts web pages from making API requests to a domain different from the one that served the web page. In `src/api.py`, we attach FastAPI's `CORSMiddleware` with `allow_origins=["*"]` so local web browsers, mobile clients, or developer scripts can query the REST endpoints (`http://localhost:8000/api/...`) without cross-origin HTTP blocked request errors.
+
+---
+
+### Q11.2: What is OpenAPI / Swagger UI, and how does FastAPI generate interactive API documentation (`/docs`)?
+**Answer:**  
+OpenAPI (formerly Swagger) is a standard specification for describing RESTful APIs. FastAPI inspects Python type hints, Pydantic request models, and route decorators at startup to automatically generate an interactive Swagger UI at `/docs` and ReDoc at `/redoc`. Developers can test endpoints directly in the browser without postman.
+
+---
+
+### Q11.3: How does the CLI daemon mode (`main.py ui` / `main.py daemon`) execute ingestion jobs on a recurring schedule?
+**Answer:**  
+The daemon runner in `main.py` utilizes a background loop with configurable sleeping intervals (`time.sleep(interval_seconds)`). On each cycle, it invokes `run_watchdog_pipeline()` and `run_events_pipeline()` sequentially, logging execution status to console and updating `watchdog.db` without human intervention.
+
+---
+
+## 12. Advanced Vector Mathematics & Search Algorithms Questions
+
+### Q12.1: What is the difference between Dense Vector Embeddings (Gemini 768-dim) and Sparse Vector Embeddings (BM25 / TF-IDF)?
+**Answer:**  
+- **Dense Vectors (Gemini 768-dim):** Almost all 768 float positions contain non-zero values derived from deep neural networks. They excel at conceptual and semantic similarity (e.g. matching *"vulnerability"* with *"exploit"*).
+- **Sparse Vectors (BM25 / TF-IDF):** High-dimensional vectors (e.g. 50,000 length) where 99.9% of entries are zero, representing exact term frequencies. They excel at exact keyword and proper-noun matching (e.g. matching exact CVE IDs like *"CVE-2026-1234"*).
+
+---
+
+### Q12.2: What is HNSW (Hierarchical Navigable Small World) indexing, and how does it speed up vector search over brute-force Cosine scanning?
+**Answer:**  
+- **Brute-Force Cosine Search:** Compares the query vector against every single vector in the database ($O(N)$ time complexity).
+- **HNSW Indexing:** Builds a multi-layer graph structure where top layers contain long-range connections for fast multi-dimensional navigation and bottom layers contain local nearest neighbors ($O(\log N)$ time complexity). It enables approximate nearest neighbor (ANN) retrieval across millions of vectors in milliseconds.
+
+---
+
+### Q12.3: What is Vector Normalization (L2 Norm), and why is it mathematically necessary before performing dot product calculations?
+**Answer:**  
+L2 normalization rescales a vector $V$ so its length (Euclidean norm $\|V\|$) equals 1:
+
+$$V_{\text{normalized}} = \frac{V}{\sqrt{\sum_{i} V_i^2}}$$
+
+When two vectors $A$ and $B$ are L2-normalized, their **Dot Product** ($A \cdot B$) becomes **mathematically identical to their Cosine Similarity**, eliminating the square-root denominator calculation during similarity loops and significantly speeding up computation.
+
+---
+
+## 13. Data Invalidation, TTL & Pipeline Resilience Questions
+
+### Q13.1: What is Data Invalidation / Time-To-Live (TTL), and how can stale security alerts or past events be cleaned from SQLite?
+**Answer:**  
+In `src/rag_store.py`, each record stores a `created_at` or `event_date` timestamp. To enforce TTL data invalidation, a periodic cleanup SQL query deletes records where the event date has elapsed or where a security alert is older than 90 days:
+```sql
+DELETE FROM tech_events WHERE start_date < DATE('now');
+```
+This keeps the local database footprint small and fast.
+
+---
+
+### Q13.2: How do you handle schema evolution if an external RSS feed or REST API changes its payload structure without notice?
+**Answer:**  
+We implement **Defensive Field Extraction**:
+Instead of assuming fixed JSON keys (e.g., `item['title']`), parsing methods use fallback dictionary getters (`item.get('title', item.get('name', 'Untitled'))`) and wrap entry parsing inside individual `try...except` blocks inside ingestion loops. If one feed item has malformed schema, it is skipped without interrupting the remaining feed items.
+
+---
+
+### Q13.3: How does exponential backoff retry logic work when external HTTP calls fail due to transient network glitches?
+**Answer:**  
+Exponential backoff retries a failed HTTP request after increasing delay intervals (e.g., 1s, 2s, 4s, 8s) combined with random jitter. This prevents overwhelming external services during temporary outages while allowing transient network drops to recover gracefully.
+
+---
+
+## 14. CSS Design Systems & Responsive Layout Engineering Questions
+
+### Q14.1: What is CSS Glassmorphism, and how is it implemented using `backdrop-filter: blur(...)` and RGBA design tokens?
+**Answer:**  
+CSS Glassmorphism creates a frosted glass effect over underlying content. In `web/index.html`, it is implemented using semi-transparent RGBA background colors and backdrop filters:
+```css
+background: rgba(22, 27, 34, 0.75);
+backdrop-filter: blur(12px);
+border: 1px solid rgba(255, 255, 255, 0.1);
+```
+This produces a sleek visual depth while maintaining text legibility.
+
+---
+
+### Q14.2: How do CSS Flexbox properties (`flex: 1`, `white-space: normal`, `box-sizing: border-box`) ensure equal button heights on mobile devices?
+**Answer:**  
+- `white-space: normal`: Allows long text strings (like *"Ingest Feeds & Events"*) to wrap onto a second line on narrow mobile viewports.
+- `height: 52px; min-height: 52px`: Locks both header action buttons to an exact, identical height regardless of line count.
+- `flex: 1`: Distributes container width 50/50 evenly across both buttons.
+- `box-sizing: border-box`: Includes padding and border thickness inside the 52px height calculation.
+
+---
+
+### Q14.3: How do CSS variables (`var(--primary-accent)`, `var(--bg-dark)`) simplify styling and potential light/dark theme toggles?
+**Answer:**  
+CSS custom properties define design tokens at the `:root` level:
+```css
+:root {
+    --primary-accent: #3b82f6;
+    --bg-dark: #0d1117;
+}
+```
+All UI elements reference these variables. Implementing a theme toggle (e.g. Light Mode) simply requires updating `:root` variable definitions via JavaScript without changing individual element styles.
+
+---
+
+## 15. Testing, DevOps & Version Control Questions
+
+### Q15.1: How would you write unit and integration tests for FastAPI REST endpoints and vector RAG retrieval?
+**Answer:**  
+- **Unit Testing:** Use `pytest` to test helper functions (`_clean_html()`, `_is_blog_recap()`, hash vector calculations) in isolation.
+- **API Integration Testing:** Use FastAPI's `TestClient` (built on `httpx`) to send simulated HTTP requests to `/api/events` and `/api/search`, asserting HTTP 200 status codes and expected JSON response structures.
+- **RAG Retrieval Testing:** Mock Gemini embedding responses with fixed vector fixtures to verify that `RAGStore.search()` correctly sorts cosine similarity rankings.
+
+---
+
+### Q15.2: How do you manage API keys and secrets securely in Python using environment variables (`python-dotenv`)?
+**Answer:**  
+Secrets (such as `GEMINI_API_KEY` and `GITHUB_TOKEN`) are stored in an un-committed `.env` file listed in `.gitignore`. `src/config.py` uses `python-dotenv` to load variables into `os.environ` at startup, ensuring sensitive credentials are never committed to Git source control.
+
+---
+
+### Q15.3: Why did we use Git Feature Branching (`docs/technical-deep-dive-and-interview-prep`), and what are the benefits of PR code reviews?
+**Answer:**  
+- **Branch Isolation:** Feature branches isolate new feature code or documentation work from the production `main` branch, ensuring `main` remains clean and deployable.
+- **Pull Request (PR) Workflow:** Allows peer developer review, automated CI test runs, and conflict detection before merging code into production.
