@@ -94,13 +94,13 @@ class LocalRAGStore:
                     return res.embedding.values
                 elif isinstance(res, dict) and "embedding" in res:
                     return res["embedding"]["values"]
-            except Exception as e:
-                logger.error(f"Error generating Gemini embedding: {e}")
+            except Exception:
+                pass
 
         vec = [0.0] * 64
-        for i, char in enumerate(text.lower()):
-            idx = ord(char) % 64
-            vec[idx] += 1.0
+        words = text.lower().split()
+        for i, word in enumerate(words[:64]):
+            vec[i % 64] += (hash(word) % 100) / 100.0
         norm = math.sqrt(sum(x * x for x in vec)) or 1.0
         return [x / norm for x in vec]
 

@@ -35,19 +35,6 @@ KNOWN_EVENT_TOPICS = [
     "ai", "android", "ios", "general", "graphql", "cloud"
 ]
 
-KNOWN_EVENT_FEEDS = [
-    {
-        "name": "Devpost Hackathons",
-        "url": "https://devpost.com/hackathons.rss",
-        "default_type": "hackathon"
-    },
-    {
-        "name": "Global Tech Conferences & Events",
-        "url": "https://tldr.tech/tech/feed",
-        "default_type": "global_conference"
-    }
-]
-
 class EventsIngestor:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or settings.gemini_api_key
@@ -128,6 +115,57 @@ class EventsIngestor:
         found = [kw for kw in known_stack if re.search(r'\b' + re.escape(kw) + r'\b', combined)]
         return sorted(list(set(found)))
 
+    def fetch_devpost_hackathons(self) -> List[TechEvent]:
+        """Fetch live active software hackathons from Devpost API."""
+        events: List[TechEvent] = []
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        for page in [1, 2]:
+            url = f"https://devpost.com/api/hackathons?page={page}"
+            try:
+                res = requests.get(url, headers=headers, timeout=6)
+                if res.status_code != 200:
+                    continue
+                data = res.json()
+                hackathons = data.get("hackathons", [])
+                for h in hackathons:
+                    title = h.get("title", "").strip()
+                    h_url = h.get("url", "").strip()
+                    if not title or not h_url:
+                        continue
+
+                    location_info = h.get("displayed_location", {})
+                    loc_name = location_info.get("location", "Online")
+                    is_online = loc_name.lower() in ["online", "virtual", "globe"] or location_info.get("icon") == "globe"
+                    city_name = "Online" if is_online else self._normalize_city_name(loc_name)
+
+                    prize = self._clean_html(h.get("prize_amount", ""))
+                    dates = h.get("submission_period_dates", "")
+                    themes = [t.get("name", "") for t in h.get("themes", [])]
+                    org = h.get("organization_name", "")
+
+                    summary = f"Prizes: {prize} | Dates: {dates} | Host: {org} | Themes: {', '.join(themes)}"
+                    tags = self._extract_stack_tags(f"{title} {' '.join(themes)}", summary)
+                    item_id = hashlib.sha256(f"devpost:{title}:{h_url}".encode('utf-8')).hexdigest()[:16]
+
+                    events.append(TechEvent(
+                        id=item_id,
+                        title=title,
+                        event_type="hackathon",
+                        is_virtual=is_online,
+                        city_location=city_name,
+                        event_date=dates or "Upcoming 2026",
+                        url=h_url,
+                        stack_tags=tags,
+                        summary=summary
+                    ))
+            except Exception as e:
+                logger.error(f"Error fetching Devpost hackathons page {page}: {e}")
+
+        logger.info(f"Ingested {len(events)} live hackathons from Devpost.")
+        return events
+
     def fetch_real_tech_conferences(self) -> List[TechEvent]:
         """Fetch 100% REAL-WORLD global tech events, conferences, and meetups."""
         events: List[TechEvent] = []
@@ -196,8 +234,10 @@ class EventsIngestor:
         return events
 
     def fetch_events(self) -> List[TechEvent]:
-        # Ingest 100% Real-World tech events
-        return self.fetch_real_tech_conferences()
+        events = []
+        events.extend(self.fetch_devpost_hackathons())
+        events.extend(self.fetch_real_tech_conferences())
+        return events
 
 def ingest_tech_events() -> List[TechEvent]:
     ingestor = EventsIngestor()
