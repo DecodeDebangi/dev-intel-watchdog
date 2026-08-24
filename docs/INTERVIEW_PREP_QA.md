@@ -1,6 +1,6 @@
 # 🎯 Dev Intel Watchdog: 360° Technical Interview Q&A Master Guide
 
-This document is an exhaustive technical interview preparation guide for the **Developer Intelligence & Security Watchdog** platform. It combines foundational concept definitions, system design principles, architectural trade-offs, vector RAG algorithms, database mechanics, frontend performance, circular drill-down questions, LLM validation, advanced vector math, and DevOps practices.
+This document is an exhaustive technical interview preparation guide for the **Developer Intelligence & Security Watchdog** platform. It combines foundational concept definitions, system design principles, architectural trade-offs, vector RAG algorithms, database mechanics, frontend performance, circular drill-down questions, LLM validation, advanced vector math, web security, performance optimizations, and DevOps practices.
 
 ---
 
@@ -20,6 +20,11 @@ This document is an exhaustive technical interview preparation guide for the **D
 13. [Data Invalidation, TTL & Pipeline Resilience Questions](#13-data-invalidation-ttl--pipeline-resilience-questions)
 14. [CSS Design Systems & Responsive Layout Engineering Questions](#14-css-design-systems--responsive-layout-engineering-questions)
 15. [Testing, DevOps & Version Control Questions](#15-testing-devops--version-control-questions)
+16. [Python Advanced Concepts & Design Patterns Questions](#16-python-advanced-concepts--design-patterns-questions)
+17. [SQL Security, Injection Prevention & Database Optimization Questions](#17-sql-security-injection-prevention--database-optimization-questions)
+18. [Web Security, XSS & Defensive Engineering Questions](#18-web-security-xss--defensive-engineering-questions)
+19. [Performance Optimization & Memory Management Questions](#19-performance-optimization--memory-management-questions)
+20. [System Orchestration & CLI Architecture Questions](#20-system-orchestration--cli-architecture-questions)
 
 ---
 
@@ -436,3 +441,159 @@ Secrets (such as `GEMINI_API_KEY` and `GITHUB_TOKEN`) are stored in an un-commit
 **Answer:**  
 - **Branch Isolation:** Feature branches isolate new feature code or documentation work from the production `main` branch, ensuring `main` remains clean and deployable.
 - **Pull Request (PR) Workflow:** Allows peer developer review, automated CI test runs, and conflict detection before merging code into production.
+
+---
+
+## 16. Python Advanced Concepts & Design Patterns Questions
+
+### Q16.1: What is the Python `@dataclass` decorator, and why is it used for `Config` in `src/config.py`?
+**Answer:**  
+The `@dataclass` decorator (introduced in Python 3.7) automatically generates special methods like `__init__()`, `__repr__()`, and `__eq__()` based on type-annotated class fields. In `src/config.py`, `@dataclass` is used to create a clean, strongly-typed configuration container:
+```python
+@dataclass
+class Config:
+    db_path: str = "watchdog.db"
+    github_token: Optional[str] = None
+```
+It eliminates boilerplate constructor code while providing type clarity.
+
+---
+
+### Q16.2: What is Pydantic's `BaseModel` vs. standard Python `@dataclass`, and why use Pydantic for API/LLM schemas (`FeedReport`)?
+**Answer:**  
+- **Standard `@dataclass`:** Used for internal data containers. It performs type hint declarations but does **not** enforce runtime type validation or type coercion.
+- **Pydantic `BaseModel`:** Used for API request/response parsing and LLM structured output validation. It enforces **strict runtime validation**, automatically coerces types (e.g. string `"123"` to integer `123`), and raises `ValidationError` when fields fail criteria. In `src/analyzer.py`, Pydantic guarantees that LLM outputs match the exact expected schema.
+
+---
+
+### Q16.3: What is the Centralized Configuration Singleton pattern, and how does `src/config.py` maintain global settings?
+**Answer:**  
+The Singleton design pattern ensures that a class has only one instance and provides a global point of access to it. In `src/config.py`, `Config` loads environment variables once at module import time and exposes a single shared instance:
+```python
+config = Config.from_env()
+```
+All components (`rag_store.py`, `analyzer.py`, `api.py`) import this single `config` instance, preventing duplicate environment file reads and ensuring uniform configuration across the application.
+
+---
+
+### Q16.4: How does `collections.Counter` / dictionary frequency tallying compute dependency weights in `src/github_sync.py`?
+**Answer:**  
+When scanning multiple repositories, `src/github_sync.py` aggregates dependency mentions using Python dictionary counts:
+```python
+package_counts[package_name] = package_counts.get(package_name, 0) + 1
+```
+This builds an `active_dependencies` map (e.g. `{"fastapi": 4, "pydantic": 4, "react": 2}`). Higher frequency weights indicate packages critical to the developer's stack, allowing the consensus engine to elevate relevant security alerts.
+
+---
+
+## 17. SQL Security, Injection Prevention & Database Optimization Questions
+
+### Q17.1: What is SQL Injection, and how do Parameterized Queries (`?` placeholders in `src/rag_store.py`) prevent it?
+**Answer:**  
+- **SQL Injection:** A vulnerability where malicious SQL code is injected into raw query strings (e.g. `"SELECT * FROM users WHERE city = '" + user_input + "'"`), allowing attackers to bypass authentication or delete tables (`' OR 1=1; DROP TABLE users; --`).
+- **Parameterized Queries:** Use `?` placeholders (or `%s` bound parameters) where the database engine separates SQL commands from user input data:
+```python
+cursor.execute("SELECT * FROM tech_events WHERE city = ?", (city_name,))
+```
+The database engine treats `city_name` strictly as a literal string parameter, rendering SQL injection mathematically impossible.
+
+---
+
+### Q17.2: What is SQLite `PRAGMA journal_mode=WAL;` (Write-Ahead Logging), and why is it essential for concurrent read/write throughput?
+**Answer:**  
+- **Rollback Journal (Default Mode):** Locks the entire database file during writes, preventing concurrent HTTP GET requests from reading until the write completes.
+- **Write-Ahead Logging (WAL Mode):** Appends database changes to a separate `.db-wal` log file first. Readers can continue querying the main `.db` file concurrently while writes occur in the WAL log.
+- **In Watchdog:** WAL mode ensures background RSS ingestion jobs (`POST /api/events/run`) never lock out user GET requests on the web dashboard.
+
+---
+
+### Q17.3: What is Database Indexing, and how would adding a B-Tree Index on `city` or `created_at` optimize SQLite queries?
+**Answer:**  
+- **Full Table Scan ($O(N)$):** Without an index, querying `SELECT * FROM tech_events WHERE city = 'Bengaluru'` requires SQLite to read every single row in the database table.
+- **B-Tree Index ($O(\log N)$):** An index creates a sorted binary search tree mapping indexed column values to row IDs. Creating an index (`CREATE INDEX idx_city ON tech_events(city)`) reduces lookup times from $O(N)$ to $O(\log N)$, executing city searches in microseconds.
+
+---
+
+### Q17.4: What is Idempotency in database operations, and how does `INSERT OR REPLACE INTO` guarantee it?
+**Answer:**  
+An idempotent operation produces the exact same system state regardless of how many times it is executed. In `src/rag_store.py`, feed items are assigned a deterministic SHA-256 primary key (`id`). Executing `INSERT OR REPLACE INTO feed_reports (id, title, ...)` updates existing records if the primary key exists or inserts a new row if it doesn't. Running ingestion 10 times results in the exact same database state as running it once.
+
+---
+
+## 18. Web Security, XSS & Defensive Engineering Questions
+
+### Q18.1: What is Cross-Site Scripting (XSS), and how does the dual sanitization pipeline (`_clean_html()` + `escapeHtml()`) eliminate XSS risks?
+**Answer:**  
+- **XSS Attack:** Occurs when an attacker injects malicious JavaScript code (e.g. `<script>stealCookies()</script>` or `<img src=x onerror=alert(1)>`) into feed descriptions, which then executes inside the user's browser.
+- **Dual Sanitization Pipeline:**
+  1. **Backend Cleaning (`_clean_html()`):** Uses regex to strip all HTML tags during ingestion before storing in SQLite.
+  2. **Frontend Encoding (`escapeHtml()`):** Converts special HTML characters into safe entity codes (`<` $\rightarrow$ `&lt;`, `>` $\rightarrow$ `&gt;`, `"` $\rightarrow$ `&quot;`) before rendering text into the DOM, preventing script execution.
+
+---
+
+### Q18.2: How do HTTP User-Agent headers bypass bot protection mechanisms when scraping RSS/API data?
+**Answer:**  
+Security edge networks (like Cloudflare or Akamai) inspect incoming HTTP request headers. Default automated HTTP clients send User-Agents like `Python-urllib/3.9` or `Go-http-client/1.1`, which edge networks automatically block with HTTP 403 Forbidden. By supplying a standard browser User-Agent (`Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)...`), requests appear as standard web browser traffic, bypassing bot filters.
+
+---
+
+### Q18.3: What is Content Security Policy (CSP), and how can it further lock down a web dashboard?
+**Answer:**  
+Content Security Policy (CSP) is an HTTP header (`Content-Security-Policy`) sent by the server that restricts the resources (scripts, images, stylesheets) the browser is allowed to load. Setting `script-src 'self'` prevents the browser from executing inline scripts or loading untrusted external JavaScript files, providing defense-in-depth against XSS.
+
+---
+
+## 19. Performance Optimization & Memory Management Questions
+
+### Q19.1: What is In-Memory Caching (`masterEventsList`), and how does it achieve $O(1)$ client-side filtering without network requests?
+**Answer:**  
+When `web/index.html` loads, `fetchEvents()` fetches the master events list once and assigns it to a global JavaScript variable (`masterEventsList = data.events`). When the developer filters by city or searches keywords, JavaScript array operations (`filter()`, `map()`) execute over `masterEventsList` in client RAM ($O(N)$ in memory, $0$ network latency), providing instant UI responsiveness (<1ms).
+
+---
+
+### Q19.2: What is the difference between Synchronous and Asynchronous execution in Python (`async def` vs. `def`), and when should each be used in FastAPI?
+**Answer:**  
+- **`async def` (Asynchronous):** Uses the `asyncio` event loop. It should be used for non-blocking I/O tasks (making async HTTP calls, fetching database records) where the thread yields control during waiting periods.
+- **`def` (Synchronous):** FastAPI automatically runs standard synchronous `def` endpoints in a separate thread pool (`ThreadPoolExecutor`). It should be used for heavy CPU-bound tasks (complex mathematical calculations or synchronous file parsing) so as not to block the main event loop.
+
+---
+
+### Q19.3: How does ASGI (Asynchronous Server Gateway Interface) via Uvicorn differ from WSGI (Gunicorn/Flask)?
+**Answer:**  
+- **WSGI (Web Server Gateway Interface):** Synchronous standard designed for classic frameworks like Flask and Django. It handles one request per worker process/thread, scaling via OS thread creation.
+- **ASGI (Asynchronous Server Gateway Interface):** Asynchronous standard designed for FastAPI and Starlette. It handles thousands of concurrent long-lived connections (WebSockets, HTTP/2, async SSE) on a single event loop thread, drastically reducing memory usage under high concurrency.
+
+---
+
+### Q19.4: What is Lazy Loading / Pagination, and how does it prevent DOM performance bottlenecks when displaying large lists?
+**Answer:**  
+Rendering 10,000 DOM nodes simultaneously causes severe browser lag, high memory consumption, and frame drops. **Pagination / Lazy Loading** limits DOM insertion to a slice of top results (e.g. 50 items per page or loading on scroll). In Watchdog, event lists default to `limit=100`, keeping client DOM tree sizes compact and animations smooth.
+
+---
+
+## 20. System Orchestration & CLI Architecture Questions
+
+### Q20.1: How does `main.py` implement CLI Command Dispatching using `sys.argv`?
+**Answer:**  
+`main.py` acts as an entry point command dispatcher. It reads command line arguments via `sys.argv` and executes matching execution modes:
+```python
+if len(sys.argv) > 1:
+    cmd = sys.argv[1]
+    if cmd == "ui": run_ui()
+    elif cmd == "sync": github_sync()
+    elif cmd == "events": run_events()
+    elif cmd == "daemon": run_daemon()
+```
+This pattern allows a single codebase to serve as an interactive web app, a CLI command tool, or a background daemon worker.
+
+---
+
+### Q20.2: What is a Daemon Process, and how does `main.py daemon` execute background pipeline loops?
+**Answer:**  
+A daemon process is a background service that runs continuously without direct user interaction. `main.py daemon` executes an infinite loop (`while True:`) with a sleep timer (`time.sleep(3600)`), triggering RSS feed ingestion and real-world event synchronization automatically every hour.
+
+---
+
+### Q20.3: How does FastAPI Static File Mounting (`app.mount("/static", ...)` serve single-page frontend assets?
+**Answer:**  
+In `src/api.py`, `app.mount("/static", StaticFiles(directory="web"), name="static")` binds the local `web/` directory to the `/static` URL path. When a user navigates to `http://localhost:8000/`, FastAPI reads `web/index.html` and streams HTML, CSS, and JS assets directly to the browser.
